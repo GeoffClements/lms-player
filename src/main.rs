@@ -1,30 +1,28 @@
+/// Entry point for Vibe.
+///
+/// `main.rs` is purely a wiring layer:
+///   - parse CLI arguments  (`cli`)
+///   - resolve the server address
+///   - run the startup helper if requested  (`startup`)
+///   - list audio devices if requested  (`audio_out`)
+///   - drive the main reconnect / event-select loop
+///
 use std::{
     iter::repeat_n,
-    net::{Ipv4Addr, SocketAddrV4, ToSocketAddrs},
-    sync::{Arc, LazyLock, Mutex, RwLock},
+    net::SocketAddrV4,
+    sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
 
 use anyhow::Context;
 use cfg_if::cfg_if;
-use clap::{
-    builder::{PossibleValuesParser, TypedValueParser},
-    Parser,
-};
-use crossbeam::{
-    atomic::AtomicCell,
-    channel::{bounded, Select},
-};
-
+use clap::Parser;
+use crossbeam::channel::{bounded, Select};
 use log::info;
-use message::{process_slim_msg, process_stream_msg};
-use simple_logger::SimpleLogger;
-use slimproto::{
-    proto::{ClientMessage, SLIM_PORT},
-    status::{StatusCode, StatusData},
-};
+use slimproto::{proto::ClientMessage, status::StatusCode};
 
 mod audio_out;
+mod cli;
 mod decode;
 mod message;
 #[cfg(feature = "notify")]
@@ -37,173 +35,45 @@ mod pulse_out;
 #[cfg(feature = "rodio")]
 mod rodio_out;
 mod startup;
+mod state;
 
-#[derive(Parser)]
-#[command(name = "Vibe", author, version, about, long_about = None)]
-struct Cli {
-    #[arg(
-        short,
-        long,
-        name = "SERVER[:PORT]",
-        // value_parser = cli_server_parser,
-        help = "Connect to the specified server, otherwise use autodiscovery")]
-    server: Option<String>,
-
-    #[arg(
-        short = 'o',
-        long,
-        name = "OUTPUT_DEVICE",
-        help = "Output device [default: System default device]"
-    )]
-    device: Option<String>,
-
-    #[arg(short, long, help = "List output devices")]
-    list: bool,
-
-    #[arg(short, long, default_value = "Vibe", help = "Set the player name")]
-    name: String,
-
-    #[cfg(any(
-        all(feature = "pulse", feature = "rodio"),
-        all(feature = "pulse", feature = "pipewire"),
-        all(feature = "rodio", feature = "pipewire")
-    ))]
-    #[arg(long, short = 'a', default_value_t = cli_default_system(), value_parser = cli_system_list(),
-        help = "Which audio system to use"
-    )]
-    system: String,
-
-    #[cfg(feature = "notify")]
-    #[arg(long, short = 'q', help = "Do not use desktop notifications")]
-    quiet: bool,
-
-    #[arg(long, help = "Create a systemd user service file")]
-    create_service: bool,
-
-    #[arg(long,
-        default_value = "off",
-        value_parser = PossibleValuesParser::new(["trace", "debug", "error", "warn", "info", "off"])
-            .map(|s| s.parse::<log::LevelFilter>().unwrap()),
-        help = "Set highest log level")]
-    loglevel: log::LevelFilter,
-}
-
-fn cli_server_parser(value: &str) -> anyhow::Result<SocketAddrV4> {
-    // Try parsing as SocketAddrV4 directly (ip:port or host:port)
-    if let Ok(addr) = value.parse::<SocketAddrV4>() {
-        return Ok(addr);
-    }
-
-    // Try parsing as Ipv4Addr (ip only, no port)
-    if let Ok(ip) = value.parse::<Ipv4Addr>() {
-        return Ok(SocketAddrV4::new(ip, SLIM_PORT));
-    }
-
-    // Try parsing as host[:port]
-    let mut parts = value.rsplitn(2, ':');
-    let last = parts.next();
-    let first = parts.next();
-
-    let (host, port) = match (first, last) {
-        (Some(host), Some(port_str)) if port_str.chars().all(|c| c.is_ascii_digit()) => {
-            let port = port_str.parse::<u16>().unwrap_or(SLIM_PORT);
-            (host, port)
-        }
-        (Some(_), Some(_)) => (value, SLIM_PORT),
-        (None, Some(host)) => (host, SLIM_PORT),
-        _ => (value, SLIM_PORT),
-    };
-
-    // Use ToSocketAddrs to resolve host and pick the first IPv4 address
-    let addr = (host, port)
-        .to_socket_addrs()?
-        .filter_map(|a| {
-            if let std::net::SocketAddr::V4(v4) = a {
-                Some(v4)
-            } else {
-                None
-            }
-        })
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("Could not resolve server address"))?;
-
-    Ok(addr)
-}
-
-fn cli_default_system() -> String {
-    cfg_if! {
-        if #[cfg(feature = "pulse")] {
-            "pulse".to_string()
-        } else if #[cfg(feature = "pipewire")] {
-            "pipewire".to_string()
-        } else {
-            "rodio".to_string()
-        }
-    }
-}
-
-#[allow(unused)]
-fn cli_system_list() -> PossibleValuesParser {
-    cfg_if! {
-        if #[cfg(all(feature = "pulse", feature = "pipewire", feature = "rodio"))] {
-            PossibleValuesParser::new(["pulse", "pipewire", "rodio"])
-        } else if #[cfg(all(feature = "pulse", feature = "pipewire"))] {
-            PossibleValuesParser::new(["pulse", "pipewire"])
-        } else if #[cfg(all(feature = "pulse", feature = "rodio"))] {
-            PossibleValuesParser::new(["pulse", "rodio"])
-        } else if #[cfg(all(feature = "rodio", feature = "pipewire"))] {
-            PossibleValuesParser::new(["pipewire", "rodio"])
-        } else {
-            PossibleValuesParser::new([""])
-        }
-    }
-}
-
-// Controls from/to the LMS
-pub static VOLUME: LazyLock<Mutex<Vec<f32>>> = LazyLock::new(|| Mutex::new(vec![1.0, 1.0]));
-pub static SKIP: LazyLock<AtomicCell<Duration>> = LazyLock::new(|| AtomicCell::new(Duration::ZERO));
-pub static STATUS: LazyLock<Arc<Mutex<StatusData>>> =
-    LazyLock::new(|| Arc::new(Mutex::new(StatusData::default())));
-
-pub struct StreamParams {
-    autostart: slimproto::proto::AutoStart,
-    output_threshold: Duration,
-}
+use cli::Cli;
+use message::{PlayerContext, PlayerMsg};
+use state::STATUS;
 
 fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    SimpleLogger::new()
+
+    simple_logger::SimpleLogger::new()
         .with_colors(true)
         .with_level(cli.loglevel)
         .init()?;
 
-    let output_system = {
+    // Determine which audio backend to use at runtime.
+    let output_system: String = {
         cfg_if! {
             if #[cfg(any(
                 all(feature = "pulse", feature = "rodio"),
                 all(feature = "pulse", feature = "pipewire"),
                 all(feature = "rodio", feature = "pipewire")
             ))] {
-                cli.system
+                cli.system.clone()
             } else {
-                cli_default_system()
+                cli::default_system()
             }
         }
     };
 
-    // Create a systemd unit file if requested
+    // --create-service: generate a systemd unit file and exit.
     if cli.create_service {
         if let Some(ref server) = cli.server {
-            _ = cli_server_parser(server).context(format!("Server not found: {}", server))?
+            cli::parse_server_addr(server).context(format!("Server not found: {}", server))?;
         }
-
         startup::create_systemd_unit(&cli.server, &output_system, &cli.device)?;
-
         return Ok(());
     }
 
-    let mut output = None;
-    // List the output devices and terminate
+    // --list: print output device names and exit.
     if cli.list {
         if let Ok(output) = audio_out::make_audio_output(
             &output_system,
@@ -218,7 +88,7 @@ fn main() -> anyhow::Result<()> {
                 .for_each(|(i, (name, description))| {
                     println!("{}: {}", i, name);
                     if let Some(desc) = description {
-                        let spaces = String::from_iter(repeat_n(
+                        let indent = repeat_n(
                             " ",
                             if i < 10 {
                                 3
@@ -227,8 +97,9 @@ fn main() -> anyhow::Result<()> {
                             } else {
                                 5
                             },
-                        ));
-                        println!("{}{}", spaces, desc);
+                        )
+                        .collect::<String>();
+                        println!("{}{}", indent, desc);
                     }
                 });
             print!("Found {} device", names.len());
@@ -236,102 +107,102 @@ fn main() -> anyhow::Result<()> {
                 print!("s");
             }
             println!();
-            return Ok(());
         }
+        return Ok(());
     }
 
-    // If a server was specified, parse it now
-    let cli_server = if let Some(ref server) = cli.server {
-        Some(cli_server_parser(server).context(format!("Server not found: {}", server))?)
+    // Resolve the optional --server argument once up front.
+    let cli_server: Option<SocketAddrV4> = if let Some(ref server) = cli.server {
+        Some(cli::parse_server_addr(server).context(format!("Server not found: {}", server))?)
     } else {
         None
     };
 
-    // Main loop - if we lose the server connection, we restart everything
+    // -----------------------------------------------------------------------
+    // Main reconnect loop — restarts whenever the server connection is lost.
+    // -----------------------------------------------------------------------
     loop {
-        let name = {
+        let player_name = {
             let name = match hostname::get().map(|s| s.into_string()) {
-                Ok(Ok(hostname)) => cli.name.clone() + &format!("@{hostname}"),
+                Ok(Ok(hostname)) => format!("{}@{}", cli.name, hostname),
                 _ => cli.name.clone(),
             };
             Arc::new(RwLock::new(name))
         };
 
-        // Start the slim protocol threads
-        // let status = Arc::new(Mutex::new(StatusData::default()));
         let start_time = Instant::now();
-        let mut server_default_ip = *cli_server.unwrap_or(SocketAddrV4::new(0.into(), 0)).ip();
-        let (slim_tx_in, slim_tx_out) = bounded(1);
-        let (slim_rx_in, slim_rx_out) = bounded(1);
-        proto::run(cli_server, slim_rx_in.clone(), slim_tx_out.clone());
 
-        // let volume = Arc::new(Mutex::new(vec![1.0f32, 1.0]));
-        let (stream_in, stream_out) = bounded(10);
+        // Channels for the SlimProto protocol thread.
+        let (slim_tx, slim_tx_out) = bounded::<ClientMessage>(1);
+        let (slim_rx_in, slim_rx) = bounded(1);
+        proto::run(cli_server, slim_rx_in, slim_tx_out);
+
+        // Channel for decoder / audio-backend → event loop messages.
+        let (stream_tx, stream_rx) = bounded::<PlayerMsg>(10);
+
+        let mut ctx = PlayerContext {
+            output: None,
+            server_default_ip: *cli_server.unwrap_or(SocketAddrV4::new(0.into(), 0)).ip(),
+            name: player_name,
+            slim_tx: slim_tx.clone(),
+            stream_tx: stream_tx.clone(),
+            start_time,
+            output_system: output_system.clone(),
+            device: cli.device.clone(),
+            #[cfg(feature = "notify")]
+            quiet: cli.quiet,
+        };
+
+        // Multiplex the two incoming channels.
         let mut select = Select::new();
-        let slim_idx = select.recv(&slim_rx_out);
-        let stream_idx = select.recv(&stream_out);
+        let slim_idx = select.recv(&slim_rx);
+        let stream_idx = select.recv(&stream_rx);
 
+        // Inner event loop — exits on server disconnect.
         loop {
-            let timeout = if output.is_some() {
+            // Poll more frequently while audio is playing so status ticks are timely.
+            let timeout = if ctx.output.is_some() {
                 Duration::from_secs(1)
             } else {
                 Duration::from_secs(5)
             };
 
             match select.select_timeout(timeout) {
-                Ok(op) if op.index() == slim_idx => match op.recv(&slim_rx_out)? {
-                    Some(msg) => process_slim_msg(
-                        &mut output,
-                        msg,
-                        &mut server_default_ip,
-                        name.clone(),
-                        slim_tx_in.clone(),
-                        stream_in.clone(),
-                        &start_time,
-                        &output_system,
-                        #[cfg(feature = "rodio")]
-                        &cli.device,
-                    )?,
-
+                // Message from the LMS server.
+                Ok(op) if op.index() == slim_idx => match op.recv(&slim_rx)? {
+                    Some(msg) => ctx.handle_server_message(msg)?,
                     None => {
                         info!("Lost contact with server, resetting");
-                        _ = slim_tx_in.send(ClientMessage::Bye(1));
-                        if let Some(ref mut output) = output {
+                        _ = slim_tx.send(ClientMessage::Bye(1));
+                        if let Some(ref mut output) = ctx.output {
                             output.stop();
                         }
                         break;
                     }
                 },
 
+                // Message from the decoder / audio backend.
                 Ok(op) if op.index() == stream_idx => {
-                    let msg = op.recv(&stream_out)?;
-                    process_stream_msg(
-                        msg,
-                        slim_tx_in.clone(),
-                        &mut output,
-                        stream_in.clone(),
-                        &cli.device,
-                        #[cfg(feature = "notify")]
-                        &cli.quiet,
-                    );
+                    let msg = op.recv(&stream_rx)?;
+                    ctx.handle_player_message(msg);
                 }
 
+                // Should not heppen, ignore if it does
                 Ok(_) => {}
 
+                // Timeout: send a periodic status update to the server.
                 Err(_) => {
-                    let play_time = match output {
-                        Some(ref output) => output.get_dur(),
-                        None => Duration::ZERO,
-                    };
+                    let play_time = ctx
+                        .output
+                        .as_ref()
+                        .map(|o| o.get_dur())
+                        .unwrap_or(Duration::ZERO);
 
                     if let Ok(mut status) = STATUS.lock() {
-                        // info!("Sending status update - jiffies: {:?}", status.get_jiffies());
                         status.set_elapsed_milli_seconds(play_time.as_millis() as u32);
                         status.set_elapsed_seconds(play_time.as_secs() as u32);
-                        // status.set_timestamp(ts);
-
                         let msg = status.make_status_message(StatusCode::Timer);
-                        _ = slim_tx_in.send(msg);
+                        _ = slim_tx.send(msg);
                     }
                 }
             }

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use crossbeam::channel::Sender;
 
-use crate::{decode::VibeDecoder, message::PlayerMsg, StreamParams};
+use crate::{decode::{StreamParams, VibeDecoder}, message::PlayerMsg};
 
 #[cfg(feature = "pipewire")]
 use crate::pipewire_out::PipewireAudioOutput;

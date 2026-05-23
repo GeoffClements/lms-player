@@ -19,7 +19,8 @@ use crate::{
     audio_out::AudioOutput,
     decode::{VibeDecoder, DecoderError},
     message::PlayerMsg,
-    StreamParams, SKIP,
+    decode::StreamParams,
+    state::SKIP,
 };
 
 const MIN_AUDIO_BUFFER_SIZE: usize = 4 * 1024;

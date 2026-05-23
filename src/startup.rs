@@ -21,7 +21,7 @@ const SERVICE_FILE_NAME: &str = "vibe.service";
 pub fn create_systemd_unit(
     server: &Option<String>,
     #[allow(unused)]
-    audio_sys: &String,
+    audio_sys: &str,
     device: &Option<String>,
 ) -> anyhow::Result<()> {
     let mut out_str = if let Some(device) = device {
