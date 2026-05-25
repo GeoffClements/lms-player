@@ -254,7 +254,7 @@ impl VibeDecoder {
         while buffer.len() < limit && !end_of_decode {
             let buf = self.get_audio_buffer()?;
             if let Some(buf) = buf {
-                // SAFETY: f32 and u8 are both byte-aligned; we're simply reinterpreting the
+                // SAFETY: u8 is byte-aligned, f32 is 4-byte aligned; we're simply reinterpreting the
                 // memory layout rather than transmuting values.
                 let audio_buffer = unsafe {
                     std::slice::from_raw_parts(buf.as_ptr() as _, buf.len() * size_of::<f32>())
