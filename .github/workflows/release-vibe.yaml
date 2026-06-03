@@ -2,7 +2,7 @@ name: Release Vibe
 
 on:
   push:
-    tags: ['v*']
+    tags: ['vibe*']
 
 jobs:
   release:
@@ -20,13 +20,6 @@ jobs:
         with:
           toolchain: stable
           cache: true
-
-      # Cache cargo-installed binaries (e.g. cargo-deb)
-      - name: Cache cargo bin
-        uses: actions/cache@v5
-        with:
-          path: ~/.cargo/bin
-          key: ${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install cargo-deb (if missing)
         run: |
@@ -56,6 +49,6 @@ jobs:
         id: auth
 
       - name: Publish crate
-        run: cargo publish
+        run: cargo publish --package vibe
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
