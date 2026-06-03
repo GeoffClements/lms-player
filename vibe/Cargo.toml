@@ -1,0 +1,87 @@
+[package]
+name = "Vibe_Player"
+version = "0.7.0"
+edition = "2021"
+description = "A music player for the Lyrion Music Server"
+readme = "README.md"
+homepage = "https://github.com/GeoffClements/Vibe"
+repository = "https://github.com/GeoffClements/Vibe"
+license = "MIT"
+keywords = ["audio", "lyrion", "music", "slim"]
+categories = ["command-line-utilities", "multimedia::audio"]
+# authors = ["Geoff Clements <ro2kz0@gmail.com>"]
+
+[package.metadata.deb]
+maintainer = "Geoff Clements <ro2kz0@gmail.com>"
+copyright = "2025, Geoff Clements <ro2kz0@gmail.com>"
+section = "universe/sound"
+priority = "optional"
+assets = [
+  [
+    "target/release/vibe",
+    "/usr/bin/",
+    "755",
+  ],
+  [
+    "README.md",
+    "/usr/share/doc/vibe-player/README.md",
+    "644",
+  ],
+]
+features = ["notify"]
+maintainer-scripts = "debian/"
+extended-description = "A music player for the Lyrion Music Server"
+
+# [package.metadata.deb.systemd-units]
+# unit-scripts = "resources/"
+# unit-name = "vibe"
+# enable = false
+# start = false
+
+# [package.metadata.rpm]
+# package = "Vibe_Player"
+
+# [package.metadata.rpm.cargo]
+# buildflags = ["--release"]
+
+# [package.metadata.rpm.targets]
+# Vibe_Player = { path = "/usr/bin/Vibe_Player" }
+
+[[bin]]
+name = "vibe"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+cfg-if = "1.0.4"
+clap = { version = "4.6.1", features = ["derive"] }
+crossbeam = "0.8.4"
+dirs = "6.0.0"
+hostname = "0.4.2"
+lms-proto = { path = "../lms-proto/" }
+log = "0.4.29"
+notify-rust = { version = "4.17.0", default-features = false, features = [
+  "dbus",
+], optional = true }
+pipewire = { version = "0.9.2", optional = true }
+pulse = { package = "libpulse-binding", version = "2.30.1", optional = true }
+rodio = { version = "0.22.2", default-features = false, features = [
+  "crossbeam-channel",
+  "playback",
+], optional = true }
+simple_logger = { version = "5.2.0", default-features = false, features = [
+  "colors",
+  "stderr",
+] }
+symphonia = { version = "0.6.0", features = ["all"] }
+which = "8.0.2"
+
+[features]
+default = ["pulse"]
+notify = ["dep:notify-rust"]
+pipewire = ["dep:pipewire"]
+pulse = ["dep:pulse"]
+rodio = ["dep:rodio"]
+
+[profile.dev.package."symphonia"]
+opt-level = 3
