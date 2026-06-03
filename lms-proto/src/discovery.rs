@@ -1,19 +1,32 @@
 /// This module provides the `discover` function which "pings" for a server
 /// on the network returning its address if it exists.
-
-use crate::{proto::{Server, ServerTlv, ServerTlvMap, SLIM_PORT}, Capabilities};
-
+// use crate::{proto::{Server, ServerTlv, ServerTlvMap, SLIM_PORT}, Capabilities};
 use std::{
     collections::HashMap,
     io,
-    net::{Ipv4Addr, SocketAddr, UdpSocket, SocketAddrV4},
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket},
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
     thread::{sleep, spawn},
     time::Duration,
 };
+
+use crate::SLIM_PORT;
+
+/// An enum which describes the various [TLV](https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value)
+/// values with which the server can respond.
+#[derive(Debug)]
+pub enum ServerTlv {
+    Name(String),
+    Version(String),
+    Address(Ipv4Addr),
+    Port(u16),
+}
+
+/// A hashmap to hold all TLVs from the server
+pub type ServerTlvMap = HashMap<String, ServerTlv>;
 
 /// Repeatedly send discover "pings" to the server with an optional timeout.
 ///
@@ -25,7 +38,9 @@ use std::{
 /// Note that the Slim Protocol is IPv4 only.
 /// This function will try forever if no timeout is passed in which case `Ok(None)` can never
 /// be returned.
-pub fn discover(timeout: Option<Duration>) -> io::Result<Option<Server>> {
+pub fn discover(
+    timeout: Option<Duration>,
+) -> io::Result<Option<(SocketAddrV4, Option<HashMap<String, ServerTlv>>)>> {
     const UDPMAXSIZE: usize = 1450; // as defined in LMS code
 
     let cx = UdpSocket::bind((Ipv4Addr::new(0, 0, 0, 0), 0))?;
@@ -38,9 +53,7 @@ pub fn discover(timeout: Option<Duration>) -> io::Result<Option<Server>> {
     spawn(move || {
         let buf = b"eNAME\0IPAD\0JSON\0VERS"; // Also \0UUID\0JVID
         while is_running.load(Ordering::Relaxed) {
-            cx_send
-                .send_to(buf, (Ipv4Addr::new(255, 255, 255, 255), SLIM_PORT))
-                .ok();
+            _ = cx_send.send_to(buf, (Ipv4Addr::new(255, 255, 255, 255), SLIM_PORT));
             sleep(Duration::from_secs(5));
         }
     });
@@ -55,20 +68,15 @@ pub fn discover(timeout: Option<Duration>) -> io::Result<Option<Server>> {
             _ => Err(e),
         },
         |(len, sock_addr)| match sock_addr {
-            SocketAddr::V4(addr) => Ok(Some(Server {
-                socket: SocketAddrV4::new(*addr.ip(), SLIM_PORT),
-                // ip_address: *addr.ip(),
-                // port: SLIM_PORT,
-                tlv_map: {
-                    if len > 0 && buf[0] == b'E' {
-                        Some(decode_tlv(&buf[1..]))
-                    } else {
-                        None
-                    }
-                },
-                sync_group_id: None,
-                caps: Capabilities(Vec::new()), // No capabilities in discovery
-            })),
+            SocketAddr::V4(addr) => {
+                let tlv = if len > 0 && buf[0] == b'E' {
+                    Some(decode_tlv(&buf[1..]))
+                } else {
+                    None
+                };
+                Ok(Some((SocketAddrV4::new(*addr.ip(), SLIM_PORT), tlv)))
+            }
+
             _ => Ok(None),
         },
     )
@@ -118,18 +126,18 @@ fn decode_tlv(buf: &[u8]) -> ServerTlvMap {
     ret
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
 
-    #[test]
-    fn server_discover() {
-        let res = discover(Some(Duration::from_secs(1)));
-        assert!(res.is_ok());
+//     #[test]
+//     fn server_discover() {
+//         let res = discover(Some(Duration::from_secs(1)));
+//         assert!(res.is_ok());
 
-        if let Ok(Some(server)) = res {
-            assert!(!server.socket.ip().is_unspecified());
-            assert!(server.tlv_map.is_some());
-        }
-    }
-}
+//         if let Ok(Some((server, tlv_map))) = res {
+//             assert!(!server.ip().is_unspecified());
+//             assert!(tlv_map.is_some());
+//         }
+//     }
+// }

@@ -1,5 +1,7 @@
 use std::net::{TcpStream, ToSocketAddrs};
 
+use mac_address::MacAddress;
+
 use crate::{
     frames::{LmsRecv, LmsSend},
     messages::ClientMessage,
@@ -9,7 +11,7 @@ use crate::{
 pub struct Hello {
     device_id: u8,
     revision: u8,
-    mac: [u8; 6],
+    mac: MacAddress,
     uuid: [u8; 16],
     wlan_channel_list: u16,
     bytes_received: u64,
@@ -32,7 +34,7 @@ impl Hello {
         self
     }
 
-    pub fn mac(mut self, mac: [u8; 6]) -> Self {
+    pub fn mac(mut self, mac: MacAddress) -> Self {
         self.mac = mac;
         self
     }
@@ -72,7 +74,7 @@ impl Hello {
         let helo = ClientMessage::Helo {
             device_id: self.device_id,
             revision: self.revision,
-            mac: self.mac.into(),
+            mac: self.mac,
             uuid: self.uuid,
             wlan_channel_list: self.wlan_channel_list,
             bytes_received: self.bytes_received,
