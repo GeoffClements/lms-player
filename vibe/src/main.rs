@@ -170,7 +170,7 @@ fn main() -> anyhow::Result<()> {
             match select.select_timeout(timeout) {
                 // Message from the LMS server.
                 Ok(op) if op.index() == slim_idx => match op.recv(&slim_rx)? {
-                    Some(msg) => ctx.handle_server_message(msg)?,
+                    Some(msg) => ctx.handle_server_message(msg),
                     None => {
                         warn!("Lost contact with server, resetting");
                         _ = slim_tx.send(ClientMessage::Bye(1));

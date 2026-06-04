@@ -69,7 +69,7 @@ impl PlayerContext {
     // -----------------------------------------------------------------------
 
     /// Dispatch a message received from the LMS.
-    pub fn handle_server_message(&mut self, msg: ServerMessage) -> anyhow::Result<()> {
+    pub fn handle_server_message(&mut self, msg: ServerMessage) {
         match msg {
             ServerMessage::Serv { ip_address, .. } => self.on_serv(ip_address),
             ServerMessage::Queryname => self.on_query_name(),
@@ -111,8 +111,6 @@ impl PlayerContext {
                 warn!("Unimplemented command: {:?}", cmd);
             }
         }
-
-        Ok(())
     }
 
     // -----------------------------------------------------------------------
