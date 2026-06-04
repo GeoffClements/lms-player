@@ -1,5 +1,8 @@
-/// This module provides the `discover` function which "pings" for a server
-/// on the network returning its address if it exists.
+//! Discovery utilities for finding an LMS instance on the local network.
+//!
+//! This module provides the `discover` function which broadcasts a discovery
+//! probe and listens for LMS responses containing Time-Length-Value (TLV)
+//! information about the server.
 // use crate::{proto::{Server, ServerTlv, ServerTlvMap, SLIM_PORT}, Capabilities};
 use std::{
     collections::HashMap,
@@ -15,8 +18,12 @@ use std::{
 
 use crate::SLIM_PORT;
 
-/// An enum which describes the various [TLV](https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value)
-/// values with which the server can respond.
+/// TLV values that a server may include in a discovery response.
+///
+/// The variants correspond to the 4-byte tokens returned by LMS discovery
+/// broadcasts (e.g. `NAME`, `VERS`, `IPAD`).
+///
+/// See: <https://en.wikipedia.org/wiki/Type%E2%80%93length%E2%80%93value>
 #[derive(Debug)]
 pub enum ServerTlv {
     Name(String),

@@ -1,3 +1,8 @@
+//! High-level protocol helpers.
+//!
+//! The `Hello` builder simplifies constructing the initial HELO message and
+//! connecting to an LMS instance. It returns a pair of frame-oriented helpers
+//! (`LmsRecv` and `LmsSend`) ready for use.
 use std::net::{TcpStream, ToSocketAddrs};
 
 use mac_address::MacAddress;
@@ -9,6 +14,11 @@ use crate::{
     messages::ClientMessage,
 };
 
+/// Builder for the HELO/initial connection sequence.
+///
+/// `Hello` collects the fields required by the Slim Protocol HELO message and
+/// provides a `connect` method that opens a TCP connection, sends the HELO
+/// frame, and returns framed reader/writer helpers.
 #[derive(Default)]
 pub struct Hello {
     device_id: u8,
@@ -22,50 +32,63 @@ pub struct Hello {
 }
 
 impl Hello {
+    /// Create a new empty `Hello` builder.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the device id field.
     pub fn device_id(mut self, device_id: u8) -> Self {
         self.device_id = device_id;
         self
     }
 
+    /// Set the revision field.
     pub fn revision(mut self, revision: u8) -> Self {
         self.revision = revision;
         self
     }
 
+    /// Set the MAC address to report to the server.
     pub fn mac(mut self, mac: MacAddress) -> Self {
         self.mac = mac;
         self
     }
 
+    /// Set the client's UUID.
     pub fn uuid(mut self, uuid: [u8; 16]) -> Self {
         self.uuid = uuid;
         self
     }
 
+    /// Set the WLAN channel list.
     pub fn wlan_channel_list(mut self, wlan_channel_list: u16) -> Self {
         self.wlan_channel_list = wlan_channel_list;
         self
     }
 
+    /// Set the number of bytes already received by the client (for resume).
     pub fn bytes_received(mut self, bytes_received: u64) -> Self {
         self.bytes_received = bytes_received;
         self
     }
 
+    /// Set the language (two-character code) reported to the server.
     pub fn language(mut self, language: [char; 2]) -> Self {
         self.language = language;
         self
     }
 
+    /// Set the capabilities the client will announce.
     pub fn capabilities(mut self, capabilities: Vec<Capability>) -> Self {
         self.caps = CapList::new(capabilities);
         self
     }
 
+    /// Connect to an LMS server and perform the initial HELO handshake.
+    ///
+    /// On success returns a `(LmsRecv, LmsSend)` pair ready for receiving and
+    /// sending framed messages.
     pub fn connect<A: ToSocketAddrs>(
         self,
         socket: A,

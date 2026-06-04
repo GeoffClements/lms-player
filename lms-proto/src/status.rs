@@ -1,7 +1,9 @@
-/// A convenience module for working with client status data.
-///
-/// The Logitech Media Server requires regular status messages from
-/// the client. This module provides convenience types for this.
+//! Convenience types for building status messages required by LMS.
+//!
+//! The Lyrion Media Server expects periodic status reports from clients. This
+//! module provides `StatusData`, a structured representation of the fields
+//! included in those reports, together with `StatusCode` values used as the
+//! event identifier.
 use std::{
     fmt,
     time::{Duration, Instant},
@@ -9,7 +11,11 @@ use std::{
 
 use crate::messages::ClientMessage;
 
-/// A struct to hold the status data as required by the server
+/// Structured status information sent to LMS.
+///
+/// `StatusData` contains the fields that the server expects in a STAT frame.
+/// Helper methods are provided to update individual fields and to create a
+/// `ClientMessage::Stat` instance ready for serialization.
 #[derive(Clone, Debug)]
 pub struct StatusData {
     pub(crate) crlf: u8,
@@ -30,13 +36,6 @@ pub struct StatusData {
 }
 
 impl StatusData {
-    // pub fn new(buffer_size: u32, output_buffer_size: u32) -> Self {
-    //     let mut stat = StatusData::default();
-    //     stat.buffer_size = buffer_size;
-    //     stat.output_buffer_size = output_buffer_size;
-    //     stat
-    // }
-
     pub fn add_crlf(&mut self, num_crlf: u8) {
         self.crlf = self.crlf.wrapping_add(num_crlf);
     }
@@ -88,10 +87,9 @@ impl StatusData {
     /// Create a status message for sending to the server
     pub fn make_status_message(&mut self, msgtype: StatusCode) -> ClientMessage {
         self.set_jiffies(Instant::now() - self.start);
-        let stat_data = self.clone();
         ClientMessage::Stat {
             event_code: msgtype.to_string(),
-            stat_data,
+            stat_data: self.clone(),
         }
     }
 }
@@ -117,7 +115,11 @@ impl Default for StatusData {
     }
 }
 
-/// Status code to send as part of the status message
+/// Codes used to identify the status event being sent.
+///
+/// Each variant maps to the short token used by LMS (e.g. `STMc` for
+/// `Connect`). `StatusData::make_status_message` accepts a `StatusCode` to
+/// produce the correct event string.
 pub enum StatusCode {
     Connect,
     DecoderReady,

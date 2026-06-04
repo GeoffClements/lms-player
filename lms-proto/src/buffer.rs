@@ -1,5 +1,12 @@
-/// Used to wrap around a reader.
-/// Keeps the associates status data updated
+//! Utilities for buffered reading tailored to the LMS Protocol.
+//!
+//! This module exposes `SlimBuffer`, a wrapper over any `Read` source that
+//! maintains an internal pre-buffer and updates a shared `StatusData` instance
+//! as bytes are consumed. `SlimBuffer` is intended for use by players that
+//! need to report buffer fullness and throughput back to the server.
+//!
+//! `SlimBuffer` implements `Read` and `BufRead` so it can be used wherever a
+//! buffered reader is expected.
 use std::{
     io::{BufRead, BufReader, Read},
     sync::{Arc, Mutex},
@@ -9,6 +16,12 @@ use crate::status::StatusData;
 
 type MaybeCallback = Option<Box<dyn FnMut() + Send + Sync + 'static>>;
 
+/// A buffered reader that maintains a small pre-buffer and updates
+/// `StatusData` as data is read.
+///
+/// The buffer will pre-fill itself up to the configured threshold when
+/// constructed. An optional callback can be provided to signal when the
+/// threshold has been reached.
 pub struct SlimBuffer<R> {
     inner: BufReader<R>,
     status: Arc<Mutex<StatusData>>,

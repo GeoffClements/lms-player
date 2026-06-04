@@ -1,3 +1,7 @@
+//! Message types and (de)serialization for the LMS Protocol.
+//!
+//! This module defines the `ClientMessage` and `ServerMessage` enums and
+//! implements conversions to/from byte buffers used on the wire.
 use std::{net::Ipv4Addr, time::Duration};
 
 use bitflags::bitflags;
@@ -6,8 +10,11 @@ use mac_address::MacAddress;
 
 use crate::status::StatusData;
 
-/// A type that describes all messages that are sent from the client to
-/// the server.
+/// Messages sent from the client to the server.
+///
+/// `ClientMessage` variants are converted into the length-prefixed binary
+/// frames expected by LMS; the `From<ClientMessage> for Bytes` implementation
+/// performs the serialization.
 #[derive(Debug)]
 pub enum ClientMessage {
     Helo {
@@ -184,8 +191,11 @@ bitflags! {
     }
 }
 
-/// A type that describes all messages that are sent from the server to
-/// the client.
+/// Messages sent from the server to the client.
+///
+/// `ServerMessage` is produced by parsing incoming framed data. Unrecognized
+/// or malformed messages are represented by the `Unrecognised` or `Error`
+/// variants.
 #[derive(Debug)]
 pub enum ServerMessage {
     Serv {

@@ -1,8 +1,15 @@
-/// Provides the types needed to send capability data to the server.
+//! Types for representing client capabilities sent to LMS.
+//!
+//! The LMS Protocol requires clients to announce supported capabilities
+//! when they connect. This module exposes the `Capability` enum for a single
+//! capability item and `CapList` for composing the full capability string.
 use std::fmt;
 
-/// A client capability as recognized by by the server. Sent as a list of capabilities
-/// when the client announces itself to the server
+/// A client capability as recognized by the server.
+///
+/// Variants map to the textual representation expected by LMS when a client
+/// announces itself. The `Display` implementation converts each variant into
+/// the corresponding protocol token.
 #[derive(Clone)]
 pub enum Capability {
     Wma,
@@ -59,8 +66,10 @@ impl fmt::Display for Capability {
     }
 }
 
-/// A list of capabilities which is sent to the server when the client announces itself.
-/// See [SlimpProto](crate::proto::SlimProto) for more details.
+/// A list of capabilities sent to the server when the client announces itself.
+///
+/// `CapList` formats as a comma-separated list suitable for inclusion in the
+/// HELO capability string.
 #[derive(Clone, Default)]
 pub(crate) struct CapList(pub(crate) Vec<Capability>);
 

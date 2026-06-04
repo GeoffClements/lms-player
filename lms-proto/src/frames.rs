@@ -1,3 +1,8 @@
+//! Frame encoder/decoder utilities.
+//!
+//! This module provides `LmsRecv` and `LmsSend` which handle the framed
+//! messaging format used by the Slim Protocol: each message is length-prefixed
+//! and may contain one or more logical server messages.
 use std::{
     io::{Error, ErrorKind, Read, Write},
     time::Duration,
@@ -9,12 +14,15 @@ use crate::messages::{ClientMessage, ServerMessage, ServerMessages};
 
 const INITIAL_CAPACITY: usize = 4 * 1024;
 
+/// A reader which collects bytes from an underlying source and decodes
+/// LMS Protocol frames into `ServerMessage` values.
 pub struct LmsRecv<R> {
     inner: R,
     buf: BytesMut,
 }
 
 impl<R> LmsRecv<R> {
+    /// Create a new frame receiver wrapping `inner`.
     pub(crate) fn new(inner: R) -> Self {
         Self {
             inner,
@@ -107,6 +115,8 @@ impl<R: Read> LmsRecv<R> {
     }
 }
 
+/// A writer which takes `ClientMessage` values and encodes them into
+/// LMS Protocol frames.
 pub struct LmsSend<W> {
     inner: W,
 }
