@@ -50,7 +50,7 @@ pub fn discover(
 ) -> io::Result<Option<(SocketAddrV4, Option<ServerTlvMap>)>> {
     const UDPMAXSIZE: usize = 1450; // as defined in LMS code
 
-    let cx = UdpSocket::bind((Ipv4Addr::new(0, 0, 0, 0), 0))?;
+    let cx = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
     cx.set_broadcast(true)?;
     cx.set_read_timeout(timeout)?;
 
@@ -60,7 +60,7 @@ pub fn discover(
     spawn(move || {
         let buf = b"eNAME\0IPAD\0JSON\0VERS"; // Also \0UUID\0JVID
         while is_running.load(Ordering::Relaxed) {
-            _ = cx_send.send_to(buf, (Ipv4Addr::new(255, 255, 255, 255), SLIM_PORT));
+            _ = cx_send.send_to(buf, (Ipv4Addr::BROADCAST, SLIM_PORT));
             sleep(Duration::from_secs(5));
         }
     });

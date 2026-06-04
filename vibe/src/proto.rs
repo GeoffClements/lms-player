@@ -11,6 +11,8 @@ use std::{
     time::Duration,
 };
 
+const SQUEEZEPLAY_ID: u8 = 12;
+
 pub fn run(
     server_addr: Option<SocketAddrV4>,
     slim_rx_in: Sender<Option<ServerMessage>>,
@@ -55,7 +57,7 @@ pub fn run(
                 .unwrap_or(0);
 
             let hello = lms_proto::Hello::new()
-                .device_id(12)
+                .device_id(SQUEEZEPLAY_ID)
                 .mac(mac)
                 .bytes_received(bytes_received)
                 .capabilities(caps);
@@ -98,11 +100,7 @@ pub fn run(
                     // println!("{:?}", msg);
                     let end = matches!(msg, ClientMessage::Bye(1));
 
-                    if tx.send(msg).is_err() {
-                        break;
-                    }
-
-                    if end {
+                    if tx.send(msg).is_err() || end {
                         break;
                     }
                 }
