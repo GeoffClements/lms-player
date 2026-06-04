@@ -91,18 +91,22 @@ impl fmt::Display for Capability {
 
 /// A list of capabilities which is sent to the server when the client announces itself.
 /// See [SlimpProto](crate::proto::SlimProto) for more details.
-#[derive(Clone)]
-pub struct Capabilities(pub(crate) Vec<Capability>);
+#[derive(Clone, Default)]
+pub(crate) struct CapList(pub(crate) Vec<Capability>);
 
-impl Capabilities {
+impl CapList {
+    pub fn new(caps: Vec<Capability>) -> Self {
+        Self(caps)
+    }
+
     /// Add a new capability to the list. Note that capabilities are sent to the server
     /// in the order that they are added to the list.
     ///
     /// Normally you will not need to use this method as capabilities are usually added
     /// using the [add_capability](crate::proto::SlimProto::add_capability) method.
     pub fn add(&mut self, newcap: Capability) {
+        // If the capability already exists, remove it first
         if let Some(index) = self.0.iter().position(|c| c == &newcap) {
-            // If the capability already exists, remove it first
             self.0.remove(index);
         }
         self.0.push(newcap);
@@ -114,23 +118,22 @@ impl Capabilities {
 }
 
 /// Default to most likely capabilities for a Squeezelite client.
-impl Default for Capabilities {
-    fn default() -> Self {
-        let mut caps = Vec::new();
-        caps.push(Capability::Model("squeezelite".to_owned()));
-        caps.push(Capability::Modelname("SqueezeLite".to_owned()));
-        caps.push(Capability::Accurateplaypoints);
-        caps.push(Capability::Hasdigitalout);
-        caps.push(Capability::Haspreamp);
-        caps.push(Capability::Hasdisabledac);
-        Self(caps)
-    }
-}
+// impl Default for CapList {
+//     fn default() -> Self {
+//         let mut caps = Vec::new();
+//         caps.push(Capability::Model("squeezelite".to_owned()));
+//         caps.push(Capability::Modelname("SqueezeLite".to_owned()));
+//         caps.push(Capability::Accurateplaypoints);
+//         caps.push(Capability::Hasdigitalout);
+//         caps.push(Capability::Haspreamp);
+//         caps.push(Capability::Hasdisabledac);
+//         Self(caps)
+//     }
+// }
 
-impl fmt::Display for Capabilities {
+impl fmt::Display for CapList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self(ref caps) = self;
-        let capstr = caps.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let capstr = self.0.iter().map(|s| s.to_string()).collect::<Vec<_>>();
         write!(f, "{}", capstr.join(","))
     }
 }
@@ -141,24 +144,33 @@ mod tests {
 
     #[test]
     fn single() {
-        let mut c = Capabilities::default();
+        let mut c = CapList::default();
         c.add(Capability::Mp3);
-        assert_eq!(c.to_string(), "Model=squeezelite,Modelname=SqueezeLite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,mp3");
+        assert_eq!(
+            c.to_string(),
+            "Model=squeezelite,Modelname=SqueezeLite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,mp3"
+        );
     }
 
     #[test]
     fn list_with_values() {
-        let mut c = Capabilities::default();
+        let mut c = CapList::default();
         c.add(Capability::Mp3);
         c.add(Capability::Maxsamplerate(9600));
         c.add(Capability::Ogg);
-        assert_eq!(c.to_string(), "Model=squeezelite,Modelname=SqueezeLite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,mp3,MaxSampleRate=9600,ogg");
+        assert_eq!(
+            c.to_string(),
+            "Model=squeezelite,Modelname=SqueezeLite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,mp3,MaxSampleRate=9600,ogg"
+        );
     }
 
     #[test]
     fn name() {
-        let mut c = Capabilities::default();
+        let mut c = CapList::default();
         c.add_name("Testing");
-        assert_eq!(c.to_string(), "Model=squeezelite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,Modelname=Testing");
+        assert_eq!(
+            c.to_string(),
+            "Model=squeezelite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,Modelname=Testing"
+        );
     }
 }

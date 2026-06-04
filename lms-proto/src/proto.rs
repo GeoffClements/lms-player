@@ -3,6 +3,8 @@ use std::net::{TcpStream, ToSocketAddrs};
 use mac_address::MacAddress;
 
 use crate::{
+    Capability,
+    capability::CapList,
     frames::{LmsRecv, LmsSend},
     messages::ClientMessage,
 };
@@ -16,7 +18,7 @@ pub struct Hello {
     wlan_channel_list: u16,
     bytes_received: u64,
     language: [char; 2],
-    capabilities: String,
+    caps: CapList,
 }
 
 impl Hello {
@@ -59,8 +61,8 @@ impl Hello {
         self
     }
 
-    pub fn capabilities(mut self, capabilities: String) -> Self {
-        self.capabilities = capabilities;
+    pub fn capabilities(mut self, capabilities: Vec<Capability>) -> Self {
+        self.caps = CapList::new(capabilities);
         self
     }
 
@@ -79,7 +81,7 @@ impl Hello {
             wlan_channel_list: self.wlan_channel_list,
             bytes_received: self.bytes_received,
             language: self.language,
-            capabilities: self.capabilities,
+            capabilities: self.caps.to_string(),
         };
 
         let rx = LmsRecv::new(stream.try_clone()?);
