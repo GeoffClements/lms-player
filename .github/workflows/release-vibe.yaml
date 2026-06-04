@@ -2,7 +2,8 @@ name: Release Vibe
 
 on:
   push:
-    tags: ['vibe*']
+    tags:
+      - 'vibe*'
 
 jobs:
   release:
