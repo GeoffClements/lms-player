@@ -7,7 +7,7 @@ use clap::{
     builder::{PossibleValuesParser, TypedValueParser},
     Parser,
 };
-use slimproto::proto::SLIM_PORT;
+use lms_proto::SLIM_PORT;
 
 #[derive(Parser)]
 #[command(name = "Vibe", author, version, about, long_about = None)]

@@ -7,8 +7,8 @@ use std::{
 };
 
 use crossbeam::channel::Sender;
+use lms_proto::{ClientMessage, ServerMessage, StatusCode};
 use log::{error, info, warn};
-use slimproto::{status::StatusCode, ClientMessage, ServerMessage};
 
 #[cfg(feature = "notify")]
 use crate::notify::notify;
@@ -263,11 +263,11 @@ impl PlayerContext {
         info!("Resume requested with interval {:?}", interval);
 
         if interval.is_zero() {
-            if let Some(output) = &mut self.output {
-                if output.unpause() {
-                    info!("Sending resumed to server");
-                    self.update_elapsed_and_send(play_time, StatusCode::Resume);
-                }
+            if let Some(output) = &mut self.output
+                && output.unpause()
+            {
+                info!("Sending resumed to server");
+                self.update_elapsed_and_send(play_time, StatusCode::Resume);
             }
         } else {
             let dur = interval.saturating_sub(Instant::now() - self.start_time);
@@ -300,11 +300,11 @@ impl PlayerContext {
         server_ip: Ipv4Addr,
         server_port: u16,
         threshold: u32,
-        format: slimproto::proto::Format,
-        pcmsamplesize: slimproto::proto::PcmSampleSize,
-        pcmsamplerate: slimproto::proto::PcmSampleRate,
-        pcmchannels: slimproto::proto::PcmChannels,
-        autostart: slimproto::proto::AutoStart,
+        format: lms_proto::Format,
+        pcmsamplesize: lms_proto::PcmSampleSize,
+        pcmsamplerate: lms_proto::PcmSampleRate,
+        pcmchannels: lms_proto::PcmChannels,
+        autostart: lms_proto::AutoStart,
         output_threshold: Duration,
     ) {
         info!("Start stream command from server");
@@ -400,11 +400,11 @@ impl PlayerContext {
     }
 
     fn on_player_unpause(&mut self) {
-        if let Some(output) = &mut self.output {
-            if output.unpause() {
-                info!("Sending track unpaused by player");
-                self.send_status(StatusCode::TrackStarted);
-            }
+        if let Some(output) = &mut self.output
+            && output.unpause()
+        {
+            info!("Sending track unpaused by player");
+            self.send_status(StatusCode::TrackStarted);
         }
     }
 
@@ -450,15 +450,15 @@ impl PlayerContext {
             }
         }
 
-        if let Some(output) = &mut self.output {
-            if let Err(e) = output.enqueue_new_stream(
+        if let Some(output) = &mut self.output
+            && let Err(e) = output.enqueue_new_stream(
                 decoder,
                 self.stream_tx.clone(),
                 stream_params,
                 &self.device,
-            ) {
-                error!("{}", e);
-            }
+            )
+        {
+            error!("{}", e);
         }
     }
 }

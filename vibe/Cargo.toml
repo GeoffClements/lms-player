@@ -1,7 +1,7 @@
 [package]
 name = "Vibe_Player"
 version = "0.7.0"
-edition = "2021"
+edition = "2024"
 description = "A music player for the Lyrion Music Server"
 readme = "README.md"
 homepage = "https://github.com/GeoffClements/Vibe"
@@ -83,6 +83,3 @@ notify = ["dep:notify-rust"]
 pipewire = ["dep:pipewire"]
 pulse = ["dep:pulse"]
 rodio = ["dep:rodio"]
-
-[profile.dev.package."symphonia"]
-opt-level = 3

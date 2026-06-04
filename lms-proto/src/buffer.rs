@@ -92,7 +92,7 @@ where
     R: Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        let bytes_read = if self.prebuf.len() > 0 {
+        let bytes_read = if !self.prebuf.is_empty() {
             let n_bytes = (&self.prebuf[..]).read(buf)?;
             self.prebuf.drain(..n_bytes);
             n_bytes
@@ -112,7 +112,7 @@ where
     R: Read,
 {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
-        if self.prebuf.len() > 0 {
+        if !self.prebuf.is_empty() {
             return Ok(&self.prebuf[..]);
         }
         self.inner.fill_buf()
@@ -121,7 +121,7 @@ where
     fn consume(&mut self, amt: usize) {
         let mut amt_left = amt;
 
-        if self.prebuf.len() > 0 {
+        if !self.prebuf.is_empty() {
             let n = amt.min(self.prebuf.len());
             self.prebuf.drain(..n);
             amt_left -= n;

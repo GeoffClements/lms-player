@@ -17,9 +17,9 @@ use std::{
 use anyhow::Context;
 use cfg_if::cfg_if;
 use clap::Parser;
-use crossbeam::channel::{bounded, Select};
-use log::info;
-use slimproto::{proto::ClientMessage, status::StatusCode};
+use crossbeam::channel::{Select, bounded};
+use lms_proto::{ClientMessage, StatusCode};
+use log::warn;
 
 mod audio_out;
 mod cli;
@@ -172,7 +172,7 @@ fn main() -> anyhow::Result<()> {
                 Ok(op) if op.index() == slim_idx => match op.recv(&slim_rx)? {
                     Some(msg) => ctx.handle_server_message(msg)?,
                     None => {
-                        info!("Lost contact with server, resetting");
+                        warn!("Lost contact with server, resetting");
                         _ = slim_tx.send(ClientMessage::Bye(1));
                         if let Some(ref mut output) = ctx.output {
                             output.stop();

@@ -29,36 +29,6 @@ pub enum Capability {
     CanHTTPS,
 }
 
-impl PartialEq for Capability {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Capability::Wma, Capability::Wma) => true,
-            (Capability::Wmap, Capability::Wmap) => true,
-            (Capability::Wmal, Capability::Wmal) => true,
-            (Capability::Ogg, Capability::Ogg) => true,
-            (Capability::Flc, Capability::Flc) => true,
-            (Capability::Pcm, Capability::Pcm) => true,
-            (Capability::Aif, Capability::Aif) => true,
-            (Capability::Mp3, Capability::Mp3) => true,
-            (Capability::Alc, Capability::Alc) => true,
-            (Capability::Aac, Capability::Aac) => true,
-            (Capability::Maxsamplerate(_), Capability::Maxsamplerate(_)) => true,
-            (Capability::Model(_), Capability::Model(_)) => true,
-            (Capability::Modelname(_), Capability::Modelname(_)) => true,
-            (Capability::Rhap, Capability::Rhap) => true,
-            (Capability::Accurateplaypoints, Capability::Accurateplaypoints) => true,
-            (Capability::Syncgroupid(_), Capability::Syncgroupid(_)) => true,
-            (Capability::Hasdigitalout, Capability::Hasdigitalout) => true,
-            (Capability::Haspreamp, Capability::Haspreamp) => true,
-            (Capability::Hasdisabledac, Capability::Hasdisabledac) => true,
-            (Capability::Firmware(_), Capability::Firmware(_)) => true,
-            (Capability::Balance, Capability::Balance) => true,
-            (Capability::CanHTTPS, Self::CanHTTPS) => true,
-            _ => false,
-        }
-    }
-}
-
 /// When sent to the server a capability is sent as text
 impl fmt::Display for Capability {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -73,7 +43,7 @@ impl fmt::Display for Capability {
             Capability::Mp3 => write!(f, "mp3"),
             Capability::Alc => write!(f, "alc"),
             Capability::Aac => write!(f, "aac"),
-            Capability::Maxsamplerate(v) => write!(f, "MaxSampleRate={}", v.to_string()),
+            Capability::Maxsamplerate(v) => write!(f, "MaxSampleRate={}", v),
             Capability::Model(v) => write!(f, "Model={}", v),
             Capability::Modelname(v) => write!(f, "Modelname={}", v),
             Capability::Rhap => write!(f, "Rhap"),
@@ -98,38 +68,7 @@ impl CapList {
     pub fn new(caps: Vec<Capability>) -> Self {
         Self(caps)
     }
-
-    /// Add a new capability to the list. Note that capabilities are sent to the server
-    /// in the order that they are added to the list.
-    ///
-    /// Normally you will not need to use this method as capabilities are usually added
-    /// using the [add_capability](crate::proto::SlimProto::add_capability) method.
-    pub fn add(&mut self, newcap: Capability) {
-        // If the capability already exists, remove it first
-        if let Some(index) = self.0.iter().position(|c| c == &newcap) {
-            self.0.remove(index);
-        }
-        self.0.push(newcap);
-    }
-
-    pub fn add_name(&mut self, name: &str) {
-        self.add(Capability::Modelname(name.to_owned()));
-    }
 }
-
-/// Default to most likely capabilities for a Squeezelite client.
-// impl Default for CapList {
-//     fn default() -> Self {
-//         let mut caps = Vec::new();
-//         caps.push(Capability::Model("squeezelite".to_owned()));
-//         caps.push(Capability::Modelname("SqueezeLite".to_owned()));
-//         caps.push(Capability::Accurateplaypoints);
-//         caps.push(Capability::Hasdigitalout);
-//         caps.push(Capability::Haspreamp);
-//         caps.push(Capability::Hasdisabledac);
-//         Self(caps)
-//     }
-// }
 
 impl fmt::Display for CapList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -144,33 +83,19 @@ mod tests {
 
     #[test]
     fn single() {
-        let mut c = CapList::default();
-        c.add(Capability::Mp3);
-        assert_eq!(
-            c.to_string(),
-            "Model=squeezelite,Modelname=SqueezeLite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,mp3"
-        );
+        let v = vec![Capability::Mp3];
+        let c = CapList::new(v);
+        assert_eq!(c.to_string(), "mp3");
     }
 
     #[test]
     fn list_with_values() {
-        let mut c = CapList::default();
-        c.add(Capability::Mp3);
-        c.add(Capability::Maxsamplerate(9600));
-        c.add(Capability::Ogg);
-        assert_eq!(
-            c.to_string(),
-            "Model=squeezelite,Modelname=SqueezeLite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,mp3,MaxSampleRate=9600,ogg"
-        );
-    }
-
-    #[test]
-    fn name() {
-        let mut c = CapList::default();
-        c.add_name("Testing");
-        assert_eq!(
-            c.to_string(),
-            "Model=squeezelite,AccuratePlayPoints=1,HasDigitalOut=1,HasPreAmp=1,HasDisableDac=1,Modelname=Testing"
-        );
+        let v = vec![
+            Capability::Mp3,
+            Capability::Maxsamplerate(9600),
+            Capability::Ogg,
+        ];
+        let c = CapList::new(v);
+        assert_eq!(c.to_string(), "mp3,MaxSampleRate=9600,ogg");
     }
 }

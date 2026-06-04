@@ -40,7 +40,7 @@ pub type ServerTlvMap = HashMap<String, ServerTlv>;
 /// be returned.
 pub fn discover(
     timeout: Option<Duration>,
-) -> io::Result<Option<(SocketAddrV4, Option<HashMap<String, ServerTlv>>)>> {
+) -> io::Result<Option<(SocketAddrV4, Option<ServerTlvMap>)>> {
     const UDPMAXSIZE: usize = 1450; // as defined in LMS code
 
     let cx = UdpSocket::bind((Ipv4Addr::new(0, 0, 0, 0), 0))?;
@@ -84,7 +84,7 @@ pub fn discover(
 
 fn decode_tlv(buf: &[u8]) -> ServerTlvMap {
     let mut ret = HashMap::new();
-    let mut view = &buf[..];
+    let mut view = buf;
 
     while view.len() > 4 && view[0].is_ascii() {
         let token = String::from_utf8(view[..4].to_vec()).unwrap_or_default();

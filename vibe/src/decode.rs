@@ -8,10 +8,7 @@ use anyhow::{bail, Context};
 #[allow(unused_imports)]
 use crossbeam::{atomic::AtomicCell, channel::Sender};
 
-use slimproto::{
-    buffer::SlimBuffer,
-    proto::{AutoStart, PcmChannels, PcmSampleRate},
-};
+use lms_proto::{AutoStart, PcmChannels, PcmSampleRate, SlimBuffer};
 
 use symphonia::core::{
     codecs::{
@@ -89,19 +86,19 @@ pub struct VibeDecoder {
 impl VibeDecoder {
     pub fn try_new(
         mss: MediaSourceStream<'static>,
-        format: slimproto::proto::Format,
-        _pcmsamplesize: slimproto::proto::PcmSampleSize,
-        pcmsamplerate: slimproto::proto::PcmSampleRate,
-        pcmchannels: slimproto::proto::PcmChannels,
+        format: lms_proto::Format,
+        _pcmsamplesize: lms_proto::PcmSampleSize,
+        pcmsamplerate: lms_proto::PcmSampleRate,
+        pcmchannels: lms_proto::PcmChannels,
     ) -> anyhow::Result<Self> {
         let mut hint = Hint::new();
         hint.mime_type({
             match format {
-                slimproto::proto::Format::Pcm => "audio/x-adpcm",
-                slimproto::proto::Format::Mp3 => "audio/mpeg",
-                slimproto::proto::Format::Aac => "audio/aac",
-                slimproto::proto::Format::Ogg => "audio/ogg",
-                slimproto::proto::Format::Flac => "audio/flac",
+                lms_proto::Format::Pcm => "audio/x-adpcm",
+                lms_proto::Format::Mp3 => "audio/mpeg",
+                lms_proto::Format::Aac => "audio/aac",
+                lms_proto::Format::Ogg => "audio/ogg",
+                lms_proto::Format::Flac => "audio/flac",
                 _ => "",
             }
         });
@@ -298,10 +295,10 @@ pub fn make_decoder(
     http_headers: String,
     stream_in: Sender<PlayerMsg>,
     threshold: u32,
-    format: slimproto::proto::Format,
-    pcmsamplesize: slimproto::proto::PcmSampleSize,
-    pcmsamplerate: slimproto::proto::PcmSampleRate,
-    pcmchannels: slimproto::proto::PcmChannels,
+    format: lms_proto::Format,
+    pcmsamplesize: lms_proto::PcmSampleSize,
+    pcmsamplerate: lms_proto::PcmSampleRate,
+    pcmchannels: lms_proto::PcmChannels,
     autostart: AutoStart,
     output_threshold: Duration,
 ) -> anyhow::Result<(VibeDecoder, StreamParams)> {

@@ -22,9 +22,9 @@ use pulse::{
 
 use crate::{
     audio_out::AudioOutput,
+    decode::StreamParams,
     decode::{DecoderError, VibeDecoder},
     message::PlayerMsg,
-    decode::StreamParams,
     state::SKIP,
 };
 
@@ -161,12 +161,12 @@ impl PulseAudioOutput {
         self.unpause()
     }
 
-    fn enqueue(&mut self, stream: Rc<RefCell<Stream>>, autostart: slimproto::proto::AutoStart) {
+    fn enqueue(&mut self, stream: Rc<RefCell<Stream>>, autostart: lms_proto::AutoStart) {
         if self.playing.is_some() {
             self.next_up = Some(stream);
         } else {
             self.playing = Some(stream);
-            if autostart == slimproto::proto::AutoStart::Auto {
+            if autostart == lms_proto::AutoStart::Auto {
                 self.play();
             }
         }

@@ -13,7 +13,7 @@ use rodio::{
     cpal::traits::HostTrait, nz, Device, DeviceSinkBuilder, DeviceTrait, MixerDeviceSink, Player,
     Source,
 };
-use slimproto::proto::AutoStart;
+use lms_proto::AutoStart;
 
 use crate::{
     audio_out::AudioOutput,

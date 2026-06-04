@@ -77,12 +77,11 @@ impl StatusData {
         self.timestamp = timestamp;
     }
 
-    // pub fn set_error_code<'a>(&'a mut self, error_code: u16) -> &'a mut Self {
-    //     self.error_code = error_code;
-    //     self
-    // }
+    pub fn bytes_received(&self) -> u64 {
+        self.bytes_received
+    }
 
-    pub fn get_jiffies(&self) -> Duration {
+    pub fn jiffies(&self) -> Duration {
         self.jiffies
     }
 

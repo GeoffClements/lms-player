@@ -241,7 +241,7 @@ impl From<BytesMut> for ServerMessage {
                 }
 
                 let ip_addr = Ipv4Addr::from(buf.split_to(4).get_u32());
-                let sync_group = if buf.len() > 0 {
+                let sync_group = if !buf.is_empty() {
                     Some(buf.into_iter().map(|c| c as char).collect::<String>())
                 } else {
                     None
@@ -354,7 +354,7 @@ impl From<BytesMut> for ServerMessage {
 
                         let server_ip = Ipv4Addr::from(buf.split_to(4).get_u32());
 
-                        let http_headers = if buf.len() > 0 {
+                        let http_headers = if !buf.is_empty() {
                             Some(String::from_utf8_lossy(&buf).to_string())
                         } else {
                             None
@@ -402,7 +402,7 @@ impl From<BytesMut> for ServerMessage {
                         ServerMessage::Skip(Duration::from_millis(timestamp as u64))
                     }
 
-                    cmd @ _ => {
+                    cmd => {
                         let mut msg = msg.to_owned();
                         msg.push('_');
                         msg.push(cmd);
@@ -432,13 +432,13 @@ impl From<BytesMut> for ServerMessage {
             }
 
             "setd" => {
-                if buf.len() == 0 {
+                if buf.is_empty() {
                     return ServerMessage::Error;
                 }
 
                 match buf.split_to(1)[0] {
                     0 => {
-                        if buf.len() == 0 {
+                        if buf.is_empty() {
                             ServerMessage::Queryname
                         } else {
                             let name = String::from_utf8(buf[..buf.len() - 1].to_vec())
@@ -449,11 +449,11 @@ impl From<BytesMut> for ServerMessage {
 
                     4 => ServerMessage::DisableDac,
 
-                    v @ _ => ServerMessage::Unrecognised(format!("This SETD is unused: {}", v)),
+                    v => ServerMessage::Unrecognised(format!("This SETD is unused: {}", v)),
                 }
             }
 
-            cmd @ _ => ServerMessage::Unrecognised(cmd.to_owned()),
+            cmd => ServerMessage::Unrecognised(cmd.to_owned()),
         }
     }
 }

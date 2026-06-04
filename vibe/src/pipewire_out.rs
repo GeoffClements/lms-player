@@ -109,13 +109,13 @@ impl PipewireAudioOutput {
     fn enqueue(
         &mut self,
         stream: (StreamRc, StreamListener<()>),
-        autostart: slimproto::proto::AutoStart,
+        autostart: lms_proto::AutoStart,
     ) {
         if self.playing.is_some() {
             self.next_up = Some(stream);
         } else {
             self.playing = Some(stream);
-            if autostart == slimproto::proto::AutoStart::Auto {
+            if autostart == lms_proto::AutoStart::Auto {
                 self.play();
             }
         }

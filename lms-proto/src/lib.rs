@@ -1,16 +1,18 @@
-// mod buffer;
-pub mod capability;
-// mod codec;
+mod buffer;
+mod capability;
 mod discovery;
 mod frames;
-pub mod messages;
-pub mod proto;
-pub mod status;
+mod messages;
+mod proto;
+mod status;
 
+pub use buffer::SlimBuffer;
 pub use capability::Capability;
 pub use discovery::discover;
-pub use messages::{ClientMessage, ServerMessage};
+pub use messages::{
+    AutoStart, ClientMessage, Format, PcmChannels, PcmSampleRate, PcmSampleSize, ServerMessage,
+};
 pub use proto::Hello;
-pub use status::StatusData;
+pub use status::{StatusCode, StatusData};
 
 pub const SLIM_PORT: u16 = 3483;

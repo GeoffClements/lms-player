@@ -1,7 +1,7 @@
 use crossbeam::channel::{Receiver, Sender};
-use lms_proto::{discover, Capability, ClientMessage, ServerMessage};
-use log::{error, info};
-use mac_address::{get_mac_address, MacAddress};
+use lms_proto::{Capability, ClientMessage, ServerMessage, discover};
+use log::{info, warn};
+use mac_address::{MacAddress, get_mac_address};
 
 use crate::state::STATUS;
 
@@ -51,14 +51,14 @@ pub fn run(
 
             let bytes_received = STATUS
                 .lock()
-                .map(|status| status.bytes_received)
+                .map(|status| status.bytes_received())
                 .unwrap_or(0);
 
             let hello = lms_proto::Hello::new()
                 .device_id(12)
                 .mac(mac)
                 .bytes_received(bytes_received)
-                .capabilities(caps); //todo more params to set
+                .capabilities(caps);
 
             // Work out which address to use for the server
             let lms_sock = match new_server_sock.take() {
@@ -70,7 +70,7 @@ pub fn run(
                         match discover(Some(Duration::from_secs(30))) {
                             Ok(Some((sock, _))) => sock,
                             _ => {
-                                error!("No server found on the network");
+                                warn!("No server found on the network");
                                 continue;
                             }
                         }
@@ -78,29 +78,25 @@ pub fn run(
                 },
             };
 
-            
             // Now attempt to connect to the server
             info!("Attempting to connect to server at {}", lms_sock.ip());
             let (mut rx, mut tx) = match hello.connect(lms_sock) {
                 Ok((rx, tx)) => (rx, tx),
                 Err(e) => {
-                    error!("Failed to connect to server at {}: {}", lms_sock.ip(), e);
+                    warn!("Failed to connect to server at {}: {}", lms_sock.ip(), e);
                     sleep(Duration::from_secs(5));
                     new_server_sock = Some(lms_sock);
                     continue;
                 }
             };
+            info!("Connected to server at {}", lms_sock.ip());
 
             // Start write thread. The thread will exit when the connection is lost or a Bye message with n=1 is sent.
             let slim_tx_out_ref = slim_tx_out.clone();
             spawn(move || {
                 while let Ok(msg) = slim_tx_out_ref.recv() {
                     // println!("{:?}", msg);
-                    let end = if let ClientMessage::Bye(1) = msg {
-                        true
-                    } else {
-                        false
-                    };
+                    let end = matches!(msg, ClientMessage::Bye(1));
 
                     if tx.send(msg).is_err() {
                         break;

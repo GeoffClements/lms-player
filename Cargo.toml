@@ -1,3 +1,6 @@
 [workspace]
-members = ["vibe", "lms-proto"]
 resolver = "2"
+members = ["lms-proto", "vibe"]
+
+[profile.dev.package."symphonia"]
+opt-level = 3
