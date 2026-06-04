@@ -108,9 +108,9 @@ jobs:
         name: Build
         run: |
           if [ -n "${{ matrix.features }}" ]; then
-            cargo build --package vibe ${{ matrix.no_default }} --features "${{ matrix.features }}"
+            cargo build --package Vibe_Player ${{ matrix.no_default }} --features "${{ matrix.features }}"
           else
-            cargo build --package vibe ${{ matrix.no_default }}
+            cargo build --package Vibe_Player ${{ matrix.no_default }}
           fi
 
   lms-proto:
