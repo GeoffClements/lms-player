@@ -1,7 +1,7 @@
 ![Static Badge](https://img.shields.io/badge/Written%20in-Rust-blue?style=flat&logo=rust)
 ![Crates.io Version](https://img.shields.io/crates/v/Vibe_Player)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![push workflow](https://github.com/GeoffClements/Vibe/actions/workflows/feature_build.yml/badge.svg)
+![push workflow](https://github.com/GeoffClements/lms-player/actions/workflows/feature_build.yml/badge.svg)
 ![Static Badge](https://img.shields.io/badge/Feel%20the-Vibe-red?style=plastic)
 
 
