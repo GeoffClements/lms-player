@@ -471,15 +471,6 @@ mod tests {
     use std::time::Instant;
 
     use super::*;
-    // use crate::status::StatusData;
-    // use framous::{FramedRead, FramedReader, FramedWrite, FramedWriter};
-
-    // use mac_address::MacAddress;
-
-    // fn do_send(mut buf: &mut [u8], frame: ClientMessage) {
-    //     let mut framed = FramedWrite::new(&mut buf, SlimCodec);
-    //     framed.framed_write(frame).unwrap();
-    // }
 
     #[test]
     fn send_helo() {
