@@ -442,10 +442,10 @@ impl PlayerContext {
         (mut decoder, stream_params): (decode::VibeDecoder, decode::StreamParams),
     ) {
         #[cfg(feature = "notify")]
-        if let Some(metadata) = decoder.metadata() {
-            if !self.quiet {
-                notify(metadata);
-            }
+        if let Some(metadata) = decoder.metadata()
+            && !self.quiet
+        {
+            notify(metadata);
         }
 
         if let Some(output) = &mut self.output

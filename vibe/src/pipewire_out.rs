@@ -15,7 +15,7 @@ use std::{
 
 use crossbeam::{
     atomic::AtomicCell,
-    channel::{bounded, Sender},
+    channel::{Sender, bounded},
 };
 use log::warn;
 use pipewire::{
@@ -25,7 +25,7 @@ use pipewire::{
     registry::{Listener, RegistryRc},
     spa::{
         param::audio::{AudioFormat, AudioInfoRaw},
-        pod::{serialize::PodSerializer, Pod},
+        pod::{Pod, serialize::PodSerializer},
         utils::Direction,
     },
     stream::{Stream, StreamFlags, StreamListener, StreamRc, StreamState},
@@ -35,9 +35,9 @@ use pipewire::{
 
 use crate::{
     audio_out::AudioOutput,
+    decode::StreamParams,
     decode::{DecoderError, VibeDecoder},
     message::PlayerMsg,
-    decode::StreamParams,
     state::SKIP,
 };
 
@@ -78,17 +78,15 @@ impl PipewireAudioOutput {
         let listener = registry
             .add_listener_local()
             .global(move |global| {
-                if global.type_ == ObjectType::Node {
-                    if let Some(props) = global.props {
-                        if props.get("media.class") == Some("Audio/Sink") {
-                            if let Ok(mut node_lock) = nodes_ref.lock() {
-                                node_lock.insert(
-                                    props.get("node.name").unwrap_or_default().to_owned(),
-                                    global.id,
-                                );
-                            }
-                        }
-                    }
+                if global.type_ == ObjectType::Node
+                    && let Some(props) = global.props
+                    && props.get("media.class") == Some("Audio/Sink")
+                    && let Ok(mut node_lock) = nodes_ref.lock()
+                {
+                    node_lock.insert(
+                        props.get("node.name").unwrap_or_default().to_owned(),
+                        global.id,
+                    );
                 }
             })
             .register();
@@ -106,11 +104,7 @@ impl PipewireAudioOutput {
         })
     }
 
-    fn enqueue(
-        &mut self,
-        stream: (StreamRc, StreamListener<()>),
-        autostart: lms_proto::AutoStart,
-    ) {
+    fn enqueue(&mut self, stream: (StreamRc, StreamListener<()>), autostart: lms_proto::AutoStart) {
         if self.playing.is_some() {
             self.next_up = Some(stream);
         } else {
@@ -406,14 +400,13 @@ impl AudioOutput for PipewireAudioOutput {
         let _listener = registry
             .add_listener_local()
             .global(move |global| {
-                if global.type_ == ObjectType::Node {
-                    if let Some(props) = global.props {
-                        if props.get("media.class") == Some("Audio/Sink") {
-                            let device_name = props.get("node.name").unwrap_or_default().to_owned();
-                            let device_desc = props.get("node.description").map(|s| s.to_owned());
-                            _ = s.send((device_name, device_desc));
-                        }
-                    }
+                if global.type_ == ObjectType::Node
+                    && let Some(props) = global.props
+                    && props.get("media.class") == Some("Audio/Sink")
+                {
+                    let device_name = props.get("node.name").unwrap_or_default().to_owned();
+                    let device_desc = props.get("node.description").map(|s| s.to_owned());
+                    _ = s.send((device_name, device_desc));
                 }
             })
             .register();
