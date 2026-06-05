@@ -137,9 +137,9 @@ jobs:
           cache: true
 
       - if: steps.changes.outputs.lms-proto == 'true'
-        name: Build
+        name: Build Proto
         run: cargo build --package lms-proto
 
       - if: steps.changes.outputs.lms-proto == 'true'
-        name: Test
+        name: Test Proto Package
         run: cargo test --package lms-proto

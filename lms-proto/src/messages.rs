@@ -40,8 +40,8 @@ impl From<ClientMessage> for Bytes {
         const FRAMESIZE: usize = 1024;
 
         let mut msg = Vec::with_capacity(FRAMESIZE + 8);
-        let mut frame_size = Vec::with_capacity(4);
-        let mut frame = Vec::with_capacity(FRAMESIZE);
+        // let mut frame_size = Vec::with_capacity(4);
+        // let mut frame = Vec::with_capacity(FRAMESIZE);
 
         match src {
             ClientMessage::Helo {
@@ -55,64 +55,67 @@ impl From<ClientMessage> for Bytes {
                 capabilities,
             } => {
                 msg.put("HELO".as_bytes());
-                frame.put_u8(device_id);
-                frame.put_u8(revision);
-                frame.put(mac.bytes().as_ref());
-                frame.put(uuid.as_ref());
-                frame.put_u16(wlan_channel_list);
-                frame.put_u64(bytes_received);
-                frame.put(
+                msg.put_u8(device_id);
+                msg.put_u8(revision);
+                msg.put(mac.bytes().as_ref());
+                msg.put(uuid.as_ref());
+                msg.put_u16(wlan_channel_list);
+                msg.put_u64(bytes_received);
+                msg.put(
                     language
                         .iter()
                         .map(|c| *c as u8)
                         .collect::<Vec<u8>>()
                         .as_ref(),
                 );
-                frame.put(capabilities.as_bytes());
+                msg.put(capabilities.as_bytes());
             }
 
             ClientMessage::Bye(val) => {
                 msg.put("BYE!".as_bytes());
-                frame.put_u8(val);
+                msg.put_u8(val);
             }
             ClientMessage::Stat {
                 event_code,
                 stat_data,
             } => {
                 msg.put("STAT".as_bytes());
-                frame.put(event_code.as_bytes());
-                frame.put_u8(stat_data.crlf);
-                frame.put_u16(0);
-                frame.put_u32(stat_data.buffer_size);
-                frame.put_u32(stat_data.fullness);
-                frame.put_u64(stat_data.bytes_received);
-                frame.put_u16(stat_data.sig_strength);
-                frame.put_u32(stat_data.jiffies.as_millis().try_into().unwrap_or_default());
-                frame.put_u32(stat_data.output_buffer_size);
-                frame.put_u32(stat_data.output_buffer_fullness);
-                frame.put_u32(stat_data.elapsed_seconds);
-                frame.put_u16(stat_data.voltage);
-                frame.put_u32(stat_data.elapsed_milliseconds);
-                frame.put_u32(
+                msg.put(event_code.as_bytes());
+                msg.put_u8(stat_data.crlf);
+                msg.put_u16(0);
+                msg.put_u32(stat_data.buffer_size);
+                msg.put_u32(stat_data.fullness);
+                msg.put_u64(stat_data.bytes_received);
+                msg.put_u16(stat_data.sig_strength);
+                msg.put_u32(stat_data.jiffies.as_millis().try_into().unwrap_or_default());
+                msg.put_u32(stat_data.output_buffer_size);
+                msg.put_u32(stat_data.output_buffer_fullness);
+                msg.put_u32(stat_data.elapsed_seconds);
+                msg.put_u16(stat_data.voltage);
+                msg.put_u32(stat_data.elapsed_milliseconds);
+                msg.put_u32(
                     stat_data
                         .timestamp
                         .as_millis()
                         .try_into()
                         .unwrap_or_default(),
                 );
-                frame.put_u16(stat_data.error_code);
+                msg.put_u16(stat_data.error_code);
             }
 
             ClientMessage::Name(name) => {
                 msg.put("SETD".as_bytes());
-                frame.put_u8(0);
-                frame.put(name.as_bytes());
+                msg.put_u8(0);
+                msg.put(name.as_bytes());
             }
         }
 
-        frame_size.put_u32(frame.len() as u32);
-        msg.append(&mut frame_size);
-        msg.append(&mut frame);
+        let mut msg_len = Vec::with_capacity(4);
+        msg_len.put_u32((msg.len().saturating_sub(4)) as u32);
+        msg.splice(4..4, msg_len);
+        // frame_size.put_u32(frame.len() as u32);
+        // msg.append(&mut frame_size);
+        // msg.append(&mut frame);
 
         msg.into()
     }
@@ -242,7 +245,7 @@ impl From<BytesMut> for ServerMessage {
         const GAIN_FACTOR: f64 = 65536.0;
 
         let msg = String::from_utf8(src.split_to(4).to_vec()).unwrap_or_default();
-        let mut buf = src; //.split();
+        let mut buf = src;
 
         match msg.as_str() {
             "serv" => {
@@ -464,6 +467,376 @@ impl From<BytesMut> for ServerMessage {
             }
 
             cmd => ServerMessage::Unrecognised(cmd.to_owned()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Instant;
+
+    use super::*;
+    // use crate::status::StatusData;
+    // use framous::{FramedRead, FramedReader, FramedWrite, FramedWriter};
+
+    // use mac_address::MacAddress;
+
+    // fn do_send(mut buf: &mut [u8], frame: ClientMessage) {
+    //     let mut framed = FramedWrite::new(&mut buf, SlimCodec);
+    //     framed.framed_write(frame).unwrap();
+    // }
+
+    #[test]
+    fn send_helo() {
+        let helo = ClientMessage::Helo {
+            device_id: 0,
+            revision: 1,
+            mac: MacAddress::new([1, 2, 3, 4, 5, 6]),
+            uuid: [7u8; 16],
+            wlan_channel_list: 0x89AB,
+            bytes_received: 1234,
+            language: ['u', 'k'],
+            capabilities: "abcd".to_owned(),
+        };
+
+        let buf: Bytes = helo.into();
+        assert_eq!(
+            &buf[..32],
+            &[
+                b'H', b'E', b'L', b'O', 0, 0, 0, 40, 0, 1, 1, 2, 3, 4, 5, 6, 7, 7, 7, 7, 7, 7, 7,
+                7, 7, 7, 7, 7, 7, 7, 7, 7,
+            ]
+        );
+        assert_eq!(
+            &buf[32..],
+            &[
+                137, 171, 0, 0, 0, 0, 0, 0, 4, 210, b'u', b'k', b'a', b'b', b'c', b'd'
+            ]
+        );
+    }
+
+    #[test]
+    fn send_bye() {
+        let bye = ClientMessage::Bye(55);
+
+        let buf: Bytes = bye.into();
+        assert_eq!(&buf[..], &[b'B', b'Y', b'E', b'!', 0, 0, 0, 1, 55]);
+    }
+
+    #[test]
+    fn send_stat() {
+        let stat_data = StatusData {
+            crlf: 0,
+            buffer_size: 1234,
+            fullness: 5678,
+            bytes_received: 9123,
+            sig_strength: 45,
+            jiffies: Duration::from_millis(6789),
+            output_buffer_size: 1234,
+            output_buffer_fullness: 5678,
+            elapsed_seconds: 9012,
+            voltage: 3456,
+            elapsed_milliseconds: 7890,
+            timestamp: Duration::from_millis(1234),
+            error_code: 5678,
+            start: Instant::now(),
+        };
+        let stat = ClientMessage::Stat {
+            event_code: "STMt".to_owned(),
+            stat_data: stat_data,
+        };
+
+        let buf: Bytes = stat.into();
+        assert_eq!(
+            &buf[..32],
+            &[
+                b'S', b'T', b'A', b'T', 0, 0, 0, 53, b'S', b'T', b'M', b't', 0, 0, 0, 0, 0, 4, 210,
+                0, 0, 22, 46, 0, 0, 0, 0, 0, 0, 35, 163, 0
+            ]
+        );
+        assert_eq!(
+            &buf[32..],
+            &[
+                45, 0, 0, 26, 133, 0, 0, 4, 210, 0, 0, 22, 46, 0, 0, 35, 52, 13, 128, 0, 0, 30,
+                210, 0, 0, 4, 210, 22, 46
+            ]
+        );
+    }
+
+    #[test]
+    fn send_name() {
+        let name = ClientMessage::Name("BadBoy".to_owned());
+
+        let buf: Bytes = name.into();
+        assert_eq!(
+            &buf[..],
+            &[
+                b'S', b'E', b'T', b'D', 0, 0, 0, 7, 0, b'B', b'a', b'd', b'B', b'o', b'y'
+            ]
+        );
+    }
+
+    #[test]
+    fn recv_serv() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b'e', b'r', b'v', 172, 16, 1, 2, b's', b'y', b'n', b'c',
+        ];
+        buf.extend_from_slice(&bytes_msg);
+
+        let msg: ServerMessage = buf.into();
+        if let ServerMessage::Serv {
+            ip_address,
+            ref sync_group_id,
+        } = msg
+        {
+            assert_eq!(ip_address, Ipv4Addr::new(172, 16, 1, 2));
+            assert_eq!(sync_group_id, &Some("sync".to_owned()));
+        } else {
+            panic!("SERV message not received");
+        }
+    }
+
+    #[test]
+    fn recv_status() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b't', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+
+        let msg: ServerMessage = buf.into();
+        match msg {
+            ServerMessage::Status(d) => assert_eq!(d, Duration::from_millis(252711186)),
+            _ => {
+                panic!("STRMt message not received");
+            }
+        }
+    }
+
+    #[test]
+    fn recv_stop() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b'q', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if !matches!(msg, ServerMessage::Stop) {
+            panic!("STRMq message not received");
+        }
+    }
+
+    #[test]
+    fn recv_pause() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b'p', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if let ServerMessage::Pause(p) = msg {
+            assert_eq!(p, Duration::from_millis(235868177));
+        } else {
+            panic!("STRMp message not received");
+        }
+    }
+
+    #[test]
+    fn recv_unpause() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b'u', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if let ServerMessage::Unpause(p) = msg {
+            assert_eq!(p, Duration::from_millis(235868177));
+        } else {
+            panic!("STRMu message not received");
+        }
+    }
+
+    #[test]
+    fn recv_skip() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b'a', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if let ServerMessage::Skip(p) = msg {
+            assert_eq!(p, Duration::from_millis(235868177));
+        } else {
+            panic!("STRMa message not received");
+        }
+    }
+
+    #[test]
+    fn recv_unrecognised() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b'x', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+            17, 18, 19, 20, 21, 22, 23, 24,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if let ServerMessage::Unrecognised(ref s) = msg {
+            assert_eq!(s, "strm_x");
+        } else {
+            panic!("STRMx message not received");
+        }
+    }
+
+    #[test]
+    fn recv_enable() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [b'a', b'u', b'd', b'e', 0, 1];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if let ServerMessage::Enable(a, b) = msg {
+            assert_eq!((a, b), (false, true));
+        } else {
+            panic!("AUDE message not received");
+        }
+    }
+
+    #[test]
+    fn recv_gain() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b'a', b'u', b'd', b'g', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 128, 0,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        match msg {
+            ServerMessage::Gain(left, right) => {
+                assert_eq!(left, 1.0);
+                assert_eq!(right, 0.5);
+            }
+            _ => panic!("GAIN message incorrect"),
+        }
+    }
+
+    #[test]
+    fn recv_setname() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b'e', b't', b'd', 0, b'n', b'e', b'w', b'n', b'a', b'm', b'e', 0,
+        ];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        match msg {
+            ServerMessage::Setname(ref name) => {
+                assert_eq!(name, "newname");
+            }
+            _ => panic!("SETNAME message incorrect"),
+        }
+    }
+
+    #[test]
+    fn recv_queryname() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [b's', b'e', b't', b'd', 0];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if !matches!(msg, ServerMessage::Queryname) {
+            panic!("SETD message not received");
+        }
+    }
+
+    #[test]
+    fn recv_disabledac() {
+        let mut buf = BytesMut::new();
+        let bytes_msg = [b's', b'e', b't', b'd', 4];
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        if !matches!(msg, ServerMessage::DisableDac) {
+            panic!("SETD message not received");
+        }
+    }
+
+    #[test]
+    fn recv_strm() {
+        fn do_panic() {
+            panic!("STRMs message not received");
+        }
+
+        let mut buf = BytesMut::new();
+        let bytes_msg = [
+            b's', b't', b'r', b'm', b's', b'1', b'm', b'2', b'3', b'?', b'0', 1, 2, 3, b'4', 1, 2,
+            0, 0, 1, 128, 0, 35, 41, 172, 16, 1, 2,
+        ];
+
+        buf.extend_from_slice(&bytes_msg);
+        let msg: ServerMessage = buf.into();
+        match msg {
+            ServerMessage::Stream {
+                ref autostart,
+                ref format,
+                ref pcmsamplesize,
+                ref pcmsamplerate,
+                ref pcmchannels,
+                ref pcmendian,
+                threshold,
+                ref spdif_enable,
+                trans_period,
+                ref trans_type,
+                ref flags,
+                output_threshold,
+                replay_gain,
+                server_port,
+                server_ip,
+                ref http_headers,
+            } => {
+                if let AutoStart::Auto = autostart {
+                } else {
+                    do_panic();
+                }
+                if let Format::Mp3 = format {
+                } else {
+                    do_panic();
+                }
+                if let PcmSampleSize::Twenty = pcmsamplesize {
+                } else {
+                    do_panic();
+                }
+                if let PcmSampleRate::Rate(r) = pcmsamplerate {
+                    assert_eq!(*r, 44100);
+                } else {
+                    do_panic();
+                }
+                if let PcmChannels::SelfDescribing = pcmchannels {
+                } else {
+                    do_panic();
+                }
+                if let PcmEndian::Big = pcmendian {
+                } else {
+                    do_panic();
+                }
+                assert_eq!(threshold, 1024);
+                if let SpdifEnable::Off = spdif_enable {
+                } else {
+                    do_panic();
+                }
+                assert_eq!(trans_period, Duration::from_secs(3));
+                if let TransType::FadeInOut = trans_type {
+                } else {
+                    do_panic();
+                }
+                assert_eq!(flags, &StreamFlags::INVERT_POLARITY_LEFT);
+                assert_eq!(output_threshold, Duration::from_millis(20));
+                assert_eq!(replay_gain, 1.5);
+                assert_eq!(server_port, 9001);
+                assert_eq!(server_ip, Ipv4Addr::new(172, 16, 1, 2));
+                assert!(http_headers.is_none());
+            }
+            _ => do_panic(),
         }
     }
 }
