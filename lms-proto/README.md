@@ -1,7 +1,7 @@
 # lms-proto
 
-A minimal Rust crate for building clients that interact with Logitech Media
-Server (LMS) over the Slim Protocol.
+A minimal Rust crate for building clients that interact with the Lyrion
+Media Server (LMS) over the Slim Protocol.
 
 This crate provides the core protocol primitives required to:
 
