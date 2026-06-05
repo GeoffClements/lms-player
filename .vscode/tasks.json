@@ -1,0 +1,28 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "test",
+			"args": ["--package", "lms-proto"],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "test",
+			"label": "test all lms-proto"
+		},
+		{
+			"type": "cargo",
+			"command": "build",
+			"args": ["--all-features", "--package", "Vibe_Player"],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"label": "build vibe all features"
+		}
+	]
+}
