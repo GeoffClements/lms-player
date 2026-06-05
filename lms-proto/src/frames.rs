@@ -166,3 +166,43 @@ impl<W: Write> LmsSend<W> {
         self.inner.flush()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_send() {
+        let out_msg = ClientMessage::Name(String::from("abc"));
+        let mut sender = LmsSend::new(Vec::new());
+        _ = sender.send(out_msg);
+
+        assert_eq!(&sender.inner, &[83, 69, 84, 68, 0, 0, 0, 4, 0, 97, 98, 99]);
+    }
+
+    #[test]
+    fn test_receive_single() {
+        let in_msg = [0u8, 6, b'a', b'u', b'd', b'e', 0, 1];
+        let mut receiver = LmsRecv::new(&in_msg[..]);
+        let rx = receiver.recv().unwrap();
+
+        assert_eq!(rx.len(), 1);
+        assert!(matches!(rx[0], ServerMessage::Enable(false, true)));
+    }
+
+    #[test]
+    fn test_receive_multi() {
+        let in_msg = [
+            0u8, 6, b'a', b'u', b'd', b'e', 0, 1, 0, 22, b'a', b'u', b'd', b'g', 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 128, 0,
+        ];
+        let mut receiver = LmsRecv::new(&in_msg[..]);
+        let rx = receiver.recv().unwrap();
+
+        assert_eq!(rx.len(), 2);
+        assert!(
+            matches!(rx[0], ServerMessage::Enable(false, true))
+                && matches!(rx[1], ServerMessage::Gain(1.0, 0.5))
+        );
+    }
+}
