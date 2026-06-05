@@ -3,7 +3,7 @@ name = "Vibe_Player"
 version = "0.7.0"
 edition = "2024"
 description = "A music player for the Lyrion Music Server"
-readme = "README.md"
+readme = "../README.md"
 homepage = "https://github.com/GeoffClements/Vibe"
 repository = "https://github.com/GeoffClements/Vibe"
 license = "MIT"
@@ -23,7 +23,7 @@ assets = [
     "755",
   ],
   [
-    "README.md",
+    "../README.md",
     "/usr/share/doc/vibe-player/README.md",
     "644",
   ],
