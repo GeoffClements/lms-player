@@ -2,5 +2,8 @@
 resolver = "3"
 members = ["lms-proto", "vibe"]
 
+[workspace.dependencies]
+mac_address = "1.1.8"
+
 [profile.dev.package."symphonia"]
 opt-level = 3

@@ -12,4 +12,4 @@ license = "MIT"
 [dependencies]
 bitflags = "2.11.1"
 bytes = "1.11.1"
-mac_address = "1.1.8"
+mac_address = { workspace = true }
