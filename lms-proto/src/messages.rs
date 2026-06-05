@@ -40,8 +40,6 @@ impl From<ClientMessage> for Bytes {
         const FRAMESIZE: usize = 1024;
 
         let mut msg = Vec::with_capacity(FRAMESIZE + 8);
-        // let mut frame_size = Vec::with_capacity(4);
-        // let mut frame = Vec::with_capacity(FRAMESIZE);
 
         match src {
             ClientMessage::Helo {
@@ -113,9 +111,6 @@ impl From<ClientMessage> for Bytes {
         let mut msg_len = Vec::with_capacity(4);
         msg_len.put_u32((msg.len().saturating_sub(4)) as u32);
         msg.splice(4..4, msg_len);
-        // frame_size.put_u32(frame.len() as u32);
-        // msg.append(&mut frame_size);
-        // msg.append(&mut frame);
 
         msg.into()
     }
