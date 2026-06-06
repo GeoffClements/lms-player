@@ -1,5 +1,5 @@
 use crossbeam::channel::{Receiver, Sender};
-use lms_proto::{Capability, ClientMessage, ServerMessage, discover};
+use lms_proto::{Capability, ClientMessage, Hello, ServerMessage, discover};
 use log::{info, warn};
 use mac_address::{MacAddress, get_mac_address};
 
@@ -54,9 +54,9 @@ pub fn run(
             let bytes_received = STATUS
                 .lock()
                 .map(|status| status.bytes_received())
-                .unwrap_or(0);
+                .unwrap_or_default();
 
-            let hello = lms_proto::Hello::new()
+            let hello = Hello::new()
                 .device_id(SQUEEZEPLAY_ID)
                 .mac(mac)
                 .bytes_received(bytes_received)
@@ -83,7 +83,7 @@ pub fn run(
             // Now attempt to connect to the server
             info!("Attempting to connect to server at {}", lms_sock.ip());
             let (mut rx, mut tx) = match hello.connect(lms_sock) {
-                Ok((rx, tx)) => (rx, tx),
+                Ok(rxtx) => rxtx,
                 Err(e) => {
                     warn!("Failed to connect to server at {}: {}", lms_sock.ip(), e);
                     sleep(Duration::from_secs(5));
