@@ -1,82 +1,58 @@
 // src/notify.rs
-// Desktop notification implementation
+//
+// Desktop notification implementation.
+//
+// Previously consumed a `symphonia::core::meta::MetadataRevision`; now
+// receives a plain `HashMap<String, String>` whose keys are lower-cased
+// FFmpeg metadata key names (e.g. "title", "artist", "album_artist",
+// "album", "date").
 //
 // Required system dependencies:
 // - dbus development libraries (libdbus-1-dev on Debian-based systems)
 // - package configuration tool (pkg-config on Debian-based systems)
 
-use std::{collections::HashMap, ops::Deref, thread};
+use std::{collections::HashMap, thread};
 
 use notify_rust::Notification;
-use symphonia::core::meta::{MetadataRevision, StandardTag};
 
-pub fn notify(metadata: MetadataRevision) {
+/// Spawn a background thread that raises a desktop notification for the
+/// currently playing track described by `metadata`.
+pub fn notify(metadata: HashMap<String, String>) {
     thread::spawn(move || {
-        let notify_tags = metadata
-            .media
-            .tags
-            .iter()
-            .fold(HashMap::new(), |mut tags, tag| {
-                match tag.std {
-                    Some(StandardTag::AlbumArtist(ref album_artist)) => {
-                        tags.insert("artist", album_artist.deref().clone());
-                    }
+        // Resolve artist: prefer album artist, fall back to track artist.
+        let artist = metadata
+            .get("album_artist")
+            .or_else(|| metadata.get("artist"))
+            .cloned();
 
-                    Some(StandardTag::Artist(ref artist)) => {
-                        tags.entry("artist").or_insert(artist.deref().clone());
-                    }
+        let album = metadata.get("album").cloned();
+        let title = metadata.get("title").cloned();
 
-                    Some(StandardTag::Album(ref album)) => {
-                        tags.insert("album", album.deref().clone());
-                    }
+        // Extract a 4-digit year from the "date" key which FFmpeg encodes as
+        // an ISO 8601 string ("2003-07-15", "2003", etc.).
+        let year = metadata.get("date").and_then(|date| {
+            date.split('-')
+                .map(str::trim)
+                .find(|part| part.len() == 4 && part.chars().all(|c| c.is_ascii_digit()))
+                .map(|y| y.to_owned())
+        });
 
-                    Some(StandardTag::TrackTitle(ref track_title)) => {
-                        tags.insert("track", track_title.deref().clone());
-                    }
+        if let Some(track) = title {
+            let mut body = format!("<b>{}</b>", track);
 
-                    Some(StandardTag::RecordingDate(ref date)) => {
-                        let year: String = date
-                            .split('-')
-                            .map(|s| s.trim())
-                            .filter(|p| p.len() == 4)
-                            .take(1)
-                            .collect();
-                        if !year.is_empty() {
-                            tags.insert("year", year);
-                        }
-                    }
-
-                    Some(StandardTag::ReleaseYear(ref year))
-                    | Some(StandardTag::OriginalReleaseYear(ref year))
-                    | Some(StandardTag::RecordingYear(ref year))
-                    | Some(StandardTag::OriginalRecordingYear(ref year)) => {
-                        tags.entry("year").or_insert(year.to_string());
-                    }
-
-                    _ => {}
-                }
-                tags
-            });
-
-        let mut notification = String::new();
-        if let Some(track) = notify_tags.get("track") {
-            notification.push_str(format!("<b>{}</b>", track).as_str());
-
-            if let Some(artist) = notify_tags.get("artist") {
-                notification.push_str(format!(" by <b>{}</b>", artist).as_str());
+            if let Some(a) = artist {
+                body.push_str(&format!(" by <b>{}</b>", a));
             }
-
-            if let Some(album) = notify_tags.get("album") {
-                notification.push_str(format!(" from <b>{}</b>", album).as_str());
+            if let Some(al) = album {
+                body.push_str(&format!(" from <b>{}</b>", al));
             }
-
-            if let Some(date) = notify_tags.get("year") {
-                notification.push_str(format!(" ({})", date).as_str());
+            if let Some(y) = year {
+                body.push_str(&format!(" ({})", y));
             }
 
             _ = Notification::new()
                 .summary("Now playing")
-                .body(&notification)
+                .body(&body)
                 .icon("emblem-music-symbolic")
                 .timeout(6000)
                 .show();

@@ -32,20 +32,10 @@ features = ["notify"]
 maintainer-scripts = "debian/"
 extended-description = "A music player for the Lyrion Music Server"
 
-# [package.metadata.deb.systemd-units]
-# unit-scripts = "resources/"
-# unit-name = "vibe"
-# enable = false
-# start = false
-
-# [package.metadata.rpm]
-# package = "Vibe_Player"
-
-# [package.metadata.rpm.cargo]
-# buildflags = ["--release"]
-
-# [package.metadata.rpm.targets]
-# Vibe_Player = { path = "/usr/bin/Vibe_Player" }
+# Build-time dependencies for the .deb package.
+# Users need:  libavcodec-dev libavformat-dev libavutil-dev libswresample-dev pkg-config
+# Runtime:     libavcodec<N> libavformat<N> libavutil<N> libswresample<N>
+# (N = 60 for FFmpeg 7.x on Ubuntu 24.04 / Debian bookworm)
 
 [[bin]]
 name = "vibe"
@@ -53,10 +43,18 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.102"
+bytemuck   = "1.25.0"
 cfg-if = "1.0.4"
 clap = { version = "4.6.1", features = ["derive"] }
 crossbeam = "0.8.4"
 dirs = "6.0.0"
+
+ffmpeg-next = "8.1.0"
+# We need the raw sys layer for the custom AVIOContext.
+ffmpeg-sys-next = "8"
+# libc for the C types used in the AVIO callback.
+libc = "0.2"
+
 hostname = "0.4.2"
 lms-proto = { path = "../lms-proto/" }
 log = "0.4.31"
@@ -74,7 +72,6 @@ simple_logger = { version = "5.2.0", default-features = false, features = [
   "colors",
   "stderr",
 ] }
-symphonia = { version = "0.6.0", features = ["all"] }
 which = "8.0.2"
 
 [features]
