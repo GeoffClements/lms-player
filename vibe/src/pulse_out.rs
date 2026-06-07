@@ -9,7 +9,7 @@ use std::{cell::RefCell, ops::Deref, rc::Rc, sync::Arc, time::Duration};
 use anyhow::anyhow;
 use crossbeam::{
     atomic::AtomicCell,
-    channel::{bounded, Sender},
+    channel::{Sender, bounded},
 };
 use log::warn;
 use pulse::{
@@ -219,25 +219,18 @@ impl AudioOutput for PulseAudioOutput {
         let mut audio_buf = Vec::with_capacity(buf_size);
 
         // Prefill audio buffer to threshold
-        loop {
-            match decoder.fill_raw_buffer(&mut audio_buf, None) {
-                Ok(_) => {}
+        match decoder.fill_raw_buffer(&mut audio_buf, None) {
+            Ok(_) => {}
 
-                // Err(DecoderError::EndOfDecode) => {
-                //     stream_in.send(PlayerMsg::EndOfDecode).ok();
-                // }
-                Err(DecoderError::StreamError(e)) => {
-                    warn!("Error reading data stream: {}", e);
-                    _ = stream_in.send(PlayerMsg::NotSupported);
-                    return Ok(());
-                }
-
-                Err(DecoderError::Retry) => {
-                    continue;
-                }
-            };
-            break;
-        }
+            // Err(DecoderError::EndOfDecode) => {
+            //     stream_in.send(PlayerMsg::EndOfDecode).ok();
+            // }
+            Err(DecoderError::StreamError(e)) => {
+                warn!("Error reading data stream: {}", e);
+                _ = stream_in.send(PlayerMsg::NotSupported);
+                return Ok(());
+            }
+        };
 
         let spec = Spec {
             format: pulse::sample::Format::F32le,
@@ -276,18 +269,14 @@ impl AudioOutput for PulseAudioOutput {
             }
 
             if *state_ref.borrow() != WriteState::Draining {
-                let end_of_decode = loop {
-                    let eod = match decoder.fill_raw_buffer(&mut audio_buf, Some(len)) {
-                        Ok(eod) => eod,
-                        Err(DecoderError::StreamError(e)) => {
-                            warn!("Error reading data stream: {}", e);
-                            _ = stream_in_ref.send(PlayerMsg::NotSupported);
-                            *state_ref.borrow_mut() = WriteState::Draining;
-                            true
-                        }
-                        Err(DecoderError::Retry) => continue,
-                    };
-                    break eod;
+                let end_of_decode = match decoder.fill_raw_buffer(&mut audio_buf, Some(len)) {
+                    Ok(eod) => eod,
+                    Err(DecoderError::StreamError(e)) => {
+                        warn!("Error reading data stream: {}", e);
+                        _ = stream_in_ref.send(PlayerMsg::NotSupported);
+                        *state_ref.borrow_mut() = WriteState::Draining;
+                        true
+                    }
                 };
 
                 if !audio_buf.is_empty() {

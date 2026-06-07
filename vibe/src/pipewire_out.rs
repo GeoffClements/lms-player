@@ -142,22 +142,15 @@ impl AudioOutput for PipewireAudioOutput {
         let mut audio_buf = Vec::with_capacity(buf_size);
 
         // Prefill audio buffer to threshold
-        loop {
-            match decoder.fill_raw_buffer(&mut audio_buf, None) {
-                Ok(_) => {}
+        match decoder.fill_raw_buffer(&mut audio_buf, None) {
+            Ok(_) => {}
 
-                Err(DecoderError::StreamError(e)) => {
-                    warn!("Error reading data stream: {}", e);
-                    _ = stream_in.send(PlayerMsg::NotSupported);
-                    return Ok(());
-                }
-
-                Err(DecoderError::Retry) => {
-                    continue;
-                }
-            };
-            break;
-        }
+            Err(DecoderError::StreamError(e)) => {
+                warn!("Error reading data stream: {}", e);
+                _ = stream_in.send(PlayerMsg::NotSupported);
+                return Ok(());
+            }
+        };
 
         let pw_lock = self.mainloop.lock();
         let stream = match StreamRc::new(
@@ -202,10 +195,6 @@ impl AudioOutput for PipewireAudioOutput {
                             _ = stream_in_ref.send(PlayerMsg::NotSupported);
                             state = ProcessState::Draining;
                             true
-                        }
-
-                        Err(DecoderError::Retry) => {
-                            continue;
                         }
                     };
 

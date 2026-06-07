@@ -91,10 +91,6 @@ impl Iterator for DecoderSource {
                         _ = self.stream_in.send(PlayerMsg::NotSupported);
                         true
                     }
-
-                    Err(DecoderError::Retry) => {
-                        continue;
-                    }
                 };
 
                 if skip > Duration::ZERO {
