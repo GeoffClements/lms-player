@@ -9,7 +9,7 @@
 
 ## What?
 This is an experimental branch that removes the dependency on
-`Symphonia` and uses `ffmpeg` do decode the audio.
+`Symphonia` and uses `ffmpeg` to decode the audio.
 
 ## Why?
 Pure curiosity. I wanted to see what the code would look like
@@ -29,7 +29,7 @@ number of `unsafe` blocks, I think it's safe to say that
 When time permits I will go through the ai-generated code
 and see if it can be improved upon.
 
-Old README follow ...
+Old README follows ...
 
 ## About
 Vibe is a music player that uses the [SLIM TCP protocol][`slimtcp`] to 
