@@ -5,7 +5,31 @@
 ![Static Badge](https://img.shields.io/badge/Feel%20the-Vibe-red?style=plastic)
 
 
-# Vibe
+# Vibe (ffmpeg)
+
+## What?
+This is an experimental branch that removes the dependency on
+`Symphonia` and uses `ffmpeg` do decode the audio.
+
+## Why?
+Pure curiosity. I wanted to see what the code would look like
+if I used `ffmpeg` instead of `Symphonia`. I must stress that
+there is nothing wrong wrong with `Symphonia`.
+
+## How?
+A lot of `decode.rs` was created by
+[Claude.ai](https://claude.ai/) with some changes to other modules
+done by hand.
+
+## Conclusion
+Judging by the amount of new code inside `decode.rs` and the 
+number of `unsafe` blocks, I think it's safe to say that
+`Symphonia` remains the superior solution for my use case.
+
+When time permits I will go through the ai-generated code
+and see if it can be improved upon.
+
+Old README follow ...
 
 ## About
 Vibe is a music player that uses the [SLIM TCP protocol][`slimtcp`] to 

@@ -1,6 +1,6 @@
 [package]
 name = "Vibe_Player"
-version = "0.7.0"
+version = "0.7.0-ffmpeg"
 edition = "2024"
 description = "A music player for the Lyrion Music Server"
 readme = "../README.md"
