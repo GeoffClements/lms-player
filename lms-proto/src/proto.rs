@@ -2,7 +2,7 @@
 //!
 //! The `Hello` builder simplifies constructing the initial HELO message and
 //! connecting to an LMS instance. It returns a pair of frame-oriented helpers
-//! (`LmsRecv` and `LmsSend`) ready for use.
+//! (`LMSRecv` and `LMSSend`) ready for use.
 use std::net::{TcpStream, ToSocketAddrs};
 
 use mac_address::MacAddress;
@@ -10,7 +10,7 @@ use mac_address::MacAddress;
 use crate::{
     Capability,
     capability::CapList,
-    frames::{LmsRecv, LmsSend},
+    frames::{LMSRecv, LMSSend},
     messages::ClientMessage,
 };
 
@@ -87,12 +87,12 @@ impl Hello {
 
     /// Connect to an LMS server and perform the initial HELO handshake.
     ///
-    /// On success returns a `(LmsRecv, LmsSend)` pair ready for receiving and
+    /// On success returns a `(LMSRecv, LMSSend)` pair ready for receiving and
     /// sending framed messages.
     pub fn connect<A: ToSocketAddrs>(
         self,
         socket: A,
-    ) -> std::io::Result<(LmsRecv<TcpStream>, LmsSend<TcpStream>)> {
+    ) -> std::io::Result<(LMSRecv<TcpStream>, LMSSend<TcpStream>)> {
         let stream = TcpStream::connect(socket)?;
         stream.set_nodelay(true)?;
 
@@ -107,8 +107,8 @@ impl Hello {
             capabilities: self.caps.to_string(),
         };
 
-        let rx = LmsRecv::new(stream.try_clone()?);
-        let mut tx = LmsSend::new(stream);
+        let rx = LMSRecv::new(stream.try_clone()?);
+        let mut tx = LMSSend::new(stream);
         tx.send(helo)?;
 
         Ok((rx, tx))
