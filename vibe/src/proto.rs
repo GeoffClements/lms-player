@@ -28,8 +28,9 @@ pub fn run(
     let mut sync_group_id: Option<String> = None;
 
     spawn(move || {
-        // The outer loop allows us to reconnect to a different server when a Serv message is received, or if the connection is lost.
-        'outer: loop {
+        // The reconnect loop allows us to reconnect to a different server when a Serv message
+        // is received.
+        'reconnect: loop {
             let mut caps = vec![
                 Capability::Model(String::from("squeezelite")),
                 Capability::Modelname(String::from("SqueezeLite")),
@@ -107,9 +108,10 @@ pub fn run(
                 info!("Write thread exiting");
             });
 
-            // The inner loop reads messages from the server until the connection is lost or a Serv message is received,
-            // in which case it breaks to the outer loop to reconnect.
-            'inner: loop {
+            // The serv loop reads messages from the server until a Serv message is received ot the connection is lost.
+            // When a Serv message is received it breaks to the reconnect loop to connect to the new server.
+            // When the connection is lost it ends the thread by breaking the reconnect loop.
+            'serv: loop {
                 match rx.recv() {
                     Ok(messages) => {
                         for msg in messages.into_iter() {
@@ -130,7 +132,7 @@ pub fn run(
                                     new_server_sock =
                                         Some(SocketAddrV4::new(ip, lms_proto::SLIM_PORT));
                                     sync_group_id = sgid;
-                                    break 'inner;
+                                    break 'serv;
                                 }
 
                                 // Business as usual for any other message
@@ -143,7 +145,7 @@ pub fn run(
 
                     Err(_) => {
                         _ = slim_rx_in.send(None);
-                        break 'outer;
+                        break 'reconnect;
                     }
                 }
             }
