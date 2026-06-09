@@ -108,7 +108,7 @@ pub fn run(
                 info!("Write thread exiting");
             });
 
-            // The serv loop reads messages from the server until a Serv message is received ot the connection is lost.
+            // The serv loop reads messages from the server until a Serv message is received or the connection is lost.
             // When a Serv message is received it breaks to the reconnect loop to connect to the new server.
             // When the connection is lost it ends the thread by breaking the reconnect loop.
             'serv: loop {

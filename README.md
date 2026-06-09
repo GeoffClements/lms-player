@@ -45,13 +45,12 @@ Vibe can create a systemd user service file for you using
 vibe --create-service
 ```
 
-If you want either a Lyrion server, 
-or an output device, or both to be specified in the service
-file then just use the `--server` and `--device` options
-, e.g.
+If you want to vibe to be started with the options that control server or output,
+i.e. `--server`, `--system` or `--device`, then just add
+them as normal to the command line, e.g.
 
 ```
-vibe --create-service --server my.lyrion.server --device my.output.device
+vibe --create-service --server my.lyrion.server --system pipewire --device my.output.device
  
 ```
 
