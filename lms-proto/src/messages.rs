@@ -237,7 +237,10 @@ pub type ServerMessages = Vec<ServerMessage>;
 
 impl From<BytesMut> for ServerMessage {
     fn from(mut src: BytesMut) -> ServerMessage {
-        const GAIN_FACTOR: f64 = 65536.0;
+        // Gain values form the LMS are 4 bytes 16.16 fixed point.
+        // We read the whole as a u32 and divide by this GAIN_FACTOR
+        // to turn it into a floating point gain value.
+        const GAIN_FACTOR: f64 = u16::MAX as f64 + 1.0; // 65536.0;
 
         let msg = String::from_utf8(src.split_to(4).to_vec()).unwrap_or_default();
         let mut buf = src;
