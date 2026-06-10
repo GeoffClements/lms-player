@@ -98,18 +98,15 @@ pub fn run(
             let slim_tx_out_ref = slim_tx_out.clone();
             spawn(move || {
                 while let Ok(msg) = slim_tx_out_ref.recv() {
-                    let mut msg = msg;
-
                     // Bye(1) is used to notify this thread to terminate. The LMS takes this
                     // as the client is going down for an upgrade. Send a normal BYE!(0) instead.
-                    let terminate = if matches!(msg, ClientMessage::Bye(1)) {
-                        msg = ClientMessage::Bye(0);
-                        true
+                    let (message, terminate) = if matches!(msg, ClientMessage::Bye(1)) {
+                        (ClientMessage::Bye(0), true)
                     } else {
-                        false
+                        (msg, false)
                     };
 
-                    if tx.send(msg).is_err() || terminate {
+                    if tx.send(message).is_err() || terminate {
                         break;
                     }
                 }
