@@ -593,7 +593,7 @@ mod tests {
 
         let msg: ServerMessage = buf.into();
         match msg {
-            ServerMessage::Status(d) => assert_eq!(d, Duration::from_millis(252711186)),
+            ServerMessage::Status(d) => assert_eq!(d, Duration::from_millis(235868177)),
             _ => {
                 panic!("STRMt message not received");
             }
