@@ -52,6 +52,9 @@ impl From<ClientMessage> for Bytes {
                 language,
                 capabilities,
             } => {
+                // all language bytes should be ascii, so use a simple cast
+                let lang = [language[0] as u8, language[1] as u8];
+
                 msg.put("HELO".as_bytes());
                 msg.put_u8(device_id);
                 msg.put_u8(revision);
@@ -59,13 +62,7 @@ impl From<ClientMessage> for Bytes {
                 msg.put(uuid.as_ref());
                 msg.put_u16(wlan_channel_list);
                 msg.put_u64(bytes_received);
-                msg.put(
-                    language
-                        .iter()
-                        .map(|c| *c as u8)
-                        .collect::<Vec<u8>>()
-                        .as_ref(),
-                );
+                msg.put(lang.as_ref());
                 msg.put(capabilities.as_bytes());
             }
 

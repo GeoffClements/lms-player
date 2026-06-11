@@ -19,6 +19,8 @@ use crate::{
 /// `Hello` collects the fields required by the Slim Protocol HELO message and
 /// provides a `connect` method that opens a TCP connection, sends the HELO
 /// frame, and returns framed reader/writer helpers.
+/// 
+/// Note: that the two `char`s in the `language` field should be ASCII.
 #[derive(Default)]
 pub struct Hello {
     device_id: u8,
@@ -73,7 +75,7 @@ impl Hello {
         self
     }
 
-    /// Set the language (two-character code) reported to the server.
+    /// Set the language (two-character code in ASCII) reported to the server.
     pub fn language(mut self, language: [char; 2]) -> Self {
         self.language = language;
         self
