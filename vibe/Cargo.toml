@@ -58,7 +58,7 @@ clap = { version = "4.6.1", features = ["derive"] }
 crossbeam = "0.8.4"
 dirs = "6.0.0"
 hostname = "0.4.2"
-lms-proto = { path = "../lms-proto/", version   = "0.1.2" }
+lms-proto = { path = "../lms-proto/", version = "0.1.2" }
 log = "0.4.31"
 mac_address  = { workspace = true }
 notify-rust = { version = "4.17.0", default-features = false, features = [
