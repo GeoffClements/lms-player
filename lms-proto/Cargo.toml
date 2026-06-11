@@ -1,6 +1,6 @@
 [package]
 name = "lms-proto"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A library for building clients to connect to a Lyrion Media Server (LMS)"
 documentation = "https://docs.rs/lms-proto"
