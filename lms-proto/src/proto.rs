@@ -82,6 +82,7 @@ impl Hello {
         self
     }
 
+    /// Whether to send the reconnect flag when we connect to the server.
     pub fn reconnect(mut self, reconnect: bool) -> Self {
         self.reconnect = reconnect;
         self

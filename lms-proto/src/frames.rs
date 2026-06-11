@@ -32,7 +32,7 @@ impl<R> LMSRecv<R> {
 }
 
 impl<R: Read> LMSRecv<R> {
-    /// Block until at least one [`ServerMessage`] is recived.
+    /// Block until at least one [`ServerMessage`] is received.
     /// Because multiple messages can be received the return value
     /// is a vector of `ServerMessage`s.
     /// A failure to read will return [`std::io::Error`], and this
