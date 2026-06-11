@@ -1,7 +1,7 @@
 //! Lightweight Lyrion Media Server (LMS) protocol primitives
 //!
 //! This crate provides a small, focused implementation of the portions of the
-//! LMS Protocol necessary for client-side interaction with Lyrion Media
+//! LMS Protocol necessary for client-side interaction with a Lyrion Media
 //! Server. It offers:
 //!
 //! - Frame encoding/decoding helpers (`frames`)

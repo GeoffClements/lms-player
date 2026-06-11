@@ -106,7 +106,7 @@ impl Hello {
         stream.set_nodelay(true)?;
 
         let wlan_channel_list = if self.reconnect {
-            self.wlan_channel_list & 0x0400
+            self.wlan_channel_list | 0x0400
         } else {
             self.wlan_channel_list
         };
