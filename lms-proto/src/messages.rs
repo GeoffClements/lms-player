@@ -108,8 +108,7 @@ impl From<ClientMessage> for Bytes {
             }
         }
 
-        let mut msg_len = Vec::with_capacity(4);
-        msg_len.put_u32((msg.len().saturating_sub(4)) as u32);
+        let msg_len = (msg.len() as u32).saturating_sub(4).to_be_bytes();
         msg.splice(4..4, msg_len);
 
         msg.into()
