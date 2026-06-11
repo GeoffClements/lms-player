@@ -17,7 +17,10 @@ pub fn run(
     server_addr: Option<SocketAddrV4>,
     slim_rx_in: Sender<Option<ServerMessage>>,
     slim_tx_out: Receiver<ClientMessage>,
+    reconnect: bool,
 ) {
+    let mut reconnect = reconnect;
+
     let mac = match get_mac_address() {
         Ok(Some(mac)) => mac,
         _ => MacAddress::default(),
@@ -61,6 +64,7 @@ pub fn run(
                 .device_id(SQUEEZEPLAY_ID)
                 .mac(mac)
                 .bytes_received(bytes_received)
+                .reconnect(reconnect)
                 .capabilities(caps);
 
             // Work out which address to use for the server
@@ -137,6 +141,7 @@ pub fn run(
                                     new_server_sock =
                                         Some(SocketAddrV4::new(ip, lms_proto::SLIM_PORT));
                                     sync_group_id = sgid;
+                                    reconnect = true;
                                     break 'serv;
                                 }
 

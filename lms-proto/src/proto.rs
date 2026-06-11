@@ -19,7 +19,7 @@ use crate::{
 /// `Hello` collects the fields required by the Slim Protocol HELO message and
 /// provides a `connect` method that opens a TCP connection, sends the HELO
 /// frame, and returns framed reader/writer helpers.
-/// 
+///
 /// Note: that the two `char`s in the `language` field should be ASCII.
 #[derive(Default)]
 pub struct Hello {
@@ -30,6 +30,7 @@ pub struct Hello {
     wlan_channel_list: u16,
     bytes_received: u64,
     language: [char; 2],
+    reconnect: bool,
     caps: CapList,
 }
 
@@ -81,6 +82,11 @@ impl Hello {
         self
     }
 
+    pub fn reconnect(mut self, reconnect: bool) -> Self {
+        self.reconnect = reconnect;
+        self
+    }
+
     /// Set the capabilities the client will announce.
     pub fn capabilities(mut self, capabilities: Vec<Capability>) -> Self {
         self.caps = CapList::new(capabilities);
@@ -98,12 +104,18 @@ impl Hello {
         let stream = TcpStream::connect(socket)?;
         stream.set_nodelay(true)?;
 
+        let wlan_channel_list = if self.reconnect {
+            self.wlan_channel_list & 0x0400
+        } else {
+            self.wlan_channel_list
+        };
+
         let helo = ClientMessage::Helo {
             device_id: self.device_id,
             revision: self.revision,
             mac: self.mac,
             uuid: self.uuid,
-            wlan_channel_list: self.wlan_channel_list,
+            wlan_channel_list,
             bytes_received: self.bytes_received,
             language: self.language,
             capabilities: self.caps.to_string(),
