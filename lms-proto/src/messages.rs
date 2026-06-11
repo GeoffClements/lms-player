@@ -266,7 +266,7 @@ impl From<BytesMut> for ServerMessage {
 
                 match buf.split_to(1)[0] as char {
                     't' => {
-                        buf.advance(14);
+                        buf.advance(13);
                         let timestamp = Duration::from_millis(buf.get_u32() as u64);
                         ServerMessage::Status(timestamp)
                     }
