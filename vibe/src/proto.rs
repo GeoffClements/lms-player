@@ -17,10 +17,8 @@ pub fn run(
     server_addr: Option<SocketAddrV4>,
     slim_rx_in: Sender<Option<ServerMessage>>,
     slim_tx_out: Receiver<ClientMessage>,
-    reconnect: bool,
+    mut reconnect: bool,
 ) {
-    let mut reconnect = reconnect;
-
     let mac = match get_mac_address() {
         Ok(Some(mac)) => mac,
         _ => MacAddress::default(),
@@ -42,7 +40,7 @@ pub fn run(
                 Capability::Haspreamp,
                 Capability::Hasdisabledac,
                 Capability::Firmware(env!("CARGO_PKG_VERSION").to_owned()),
-                Capability::Maxsamplerate(192000),
+                Capability::Maxsamplerate(192_000),
                 Capability::Pcm,
                 Capability::Mp3,
                 Capability::Aac,
