@@ -34,7 +34,7 @@ pub fn run(
         'reconnect: loop {
             let mut caps = vec![
                 Capability::Model(String::from("squeezelite")),
-                Capability::Modelname(String::from("SqueezeLite")),
+                Capability::Modelname(String::from("vibe_player")),
                 Capability::Accurateplaypoints,
                 Capability::Hasdigitalout,
                 Capability::Haspreamp,
