@@ -7,7 +7,7 @@ documentation = "https://docs.rs/lms-proto"
 readme = "README.md"
 homepage = "https://github.com/GeoffClements/lms-player"
 repository = "https://github.com/GeoffClements/lms-player"
-license = "MIT"
+license = "Apache-2.0"
 
 [dependencies]
 bitflags = "2.11.1"
