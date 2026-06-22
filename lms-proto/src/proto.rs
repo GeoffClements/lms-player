@@ -3,7 +3,10 @@
 //! The `Hello` builder simplifies constructing the initial HELO message and
 //! connecting to an LMS instance. It returns a pair of frame-oriented helpers
 //! (`LMSRecv` and `LMSSend`) ready for use.
-use std::net::{TcpStream, ToSocketAddrs};
+use std::{
+    io::{Read, Write},
+    net::{TcpStream, ToSocketAddrs},
+};
 
 use mac_address::MacAddress;
 
@@ -101,7 +104,7 @@ impl Hello {
     pub fn connect<A: ToSocketAddrs>(
         self,
         socket: A,
-    ) -> std::io::Result<(LMSRecv<TcpStream>, LMSSend<TcpStream>)> {
+    ) -> std::io::Result<(LMSRecv<impl Read>, LMSSend<impl Write>)> {
         let stream = TcpStream::connect(socket)?;
         stream.set_nodelay(true)?;
 
