@@ -277,7 +277,7 @@ impl AudioOutput for PipewireAudioOutput {
 
                 // Bytes PipeWire itself is holding: queued (in its ring buffer, not yet at the
                 // driver) plus the driver's reported hardware delay, converted from ticks to bytes.
-                let pw_queued_bytes = time.queued().max(0) as u64;
+                let pw_queued_bytes = time.queued();
                 let driver_delay_bytes = if time.rate().denom != 0 {
                     (time.delay().max(0) as u64)
                         .saturating_mul(rate as u64)
