@@ -305,6 +305,8 @@ impl AudioOutput for PipewireAudioOutput {
 
         let stream_in_ref = stream_in.clone();
         let duration = self.duration.clone();
+        let start_ticks = self.start_ticks.clone();
+        let skip_offset_ms = self.skip_offset_ms.clone();
         let on_state_change = move |_stream: &Stream,
                                     _data: &mut _,
                                     old_state: StreamState,
@@ -313,6 +315,8 @@ impl AudioOutput for PipewireAudioOutput {
                 (StreamState::Connecting, StreamState::Paused)
                 | (StreamState::Connecting, StreamState::Streaming) => {
                     duration.store(0);
+                    start_ticks.store(None);
+                    skip_offset_ms.store(0);
                     _ = stream_in_ref.send(PlayerMsg::TrackStarted);
                 }
 
