@@ -6,21 +6,20 @@
 
 use std::{collections::VecDeque, num::NonZero, time::Duration};
 
-use anyhow::{self, bail, Context};
+use anyhow::{self, Context, bail};
 use crossbeam::channel::Sender;
+use lms_proto::AutoStart;
 use log::warn;
 use rodio::{
-    cpal::traits::HostTrait, nz, Device, DeviceSinkBuilder, DeviceTrait, MixerDeviceSink, Player,
-    Source,
+    Device, DeviceSinkBuilder, DeviceTrait, MixerDeviceSink, Player, Source,
+    cpal::traits::HostTrait, nz,
 };
-use lms_proto::AutoStart;
 
 use crate::{
     audio_out::AudioOutput,
-    decode::{VibeDecoder, DecoderError},
+    decode::{DecoderError, StreamParams, VibeDecoder},
     message::PlayerMsg,
-    decode::StreamParams,
-    state::SKIP,
+    state::{SKIP, STATUS},
 };
 
 const MIN_AUDIO_BUFFER_SIZE: usize = 4 * 1024;
@@ -113,6 +112,15 @@ impl Iterator for DecoderSource {
 
                 break eod;
             };
+
+            // report our own buffer fullness (best available signal; rodio/cpal
+            // exposes no hardware or device-queue latency, so this only covers the
+            // pre-decoded sample buffer, not actual time-to-speaker)
+            if let Ok(mut status) = STATUS.lock() {
+                let bytes_per_sample = size_of::<f32>();
+                status.set_output_buffer_size((self.frame.capacity() * bytes_per_sample) as u32);
+                status.set_output_buffer_fullness((self.frame.len() * bytes_per_sample) as u32);
+            }
 
             if self.eod_flag {
                 _ = self.stream_in.send(PlayerMsg::EndOfDecode);
