@@ -222,6 +222,7 @@ impl AudioOutput for PipewireAudioOutput {
                         let actual_skip_time =
                             decoder.samples_to_dur((bytes_to_skip / size_of::<f32>()) as _);
                         duration.fetch_add(actual_skip_time.as_millis() as _);
+                        skip_offset_ms.fetch_add(actual_skip_time.as_millis() as _);
                         skip_time = skip_time.saturating_sub(actual_skip_time);
 
                         if audio_buf.is_empty() {
