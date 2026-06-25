@@ -10,7 +10,6 @@ use anyhow::anyhow;
 use crossbeam::{
     atomic::AtomicCell,
     channel::{Sender, bounded},
-    channel::{Sender, bounded},
 };
 use log::warn;
 use pulse::{
@@ -279,7 +278,6 @@ impl AudioOutput for PulseAudioOutput {
                             *state_ref.borrow_mut() = WriteState::Draining;
                             true
                         }
-                        Err(DecoderError::Retry) => continue,
                     };
                     break eod;
                 };
