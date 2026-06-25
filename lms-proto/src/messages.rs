@@ -52,6 +52,9 @@ impl From<ClientMessage> for Bytes {
                 language,
                 capabilities,
             } => {
+                // all language bytes should be ascii, so use a simple cast
+                let lang = [language[0] as u8, language[1] as u8];
+
                 msg.put("HELO".as_bytes());
                 msg.put_u8(device_id);
                 msg.put_u8(revision);
@@ -59,13 +62,7 @@ impl From<ClientMessage> for Bytes {
                 msg.put(uuid.as_ref());
                 msg.put_u16(wlan_channel_list);
                 msg.put_u64(bytes_received);
-                msg.put(
-                    language
-                        .iter()
-                        .map(|c| *c as u8)
-                        .collect::<Vec<u8>>()
-                        .as_ref(),
-                );
+                msg.put(lang.as_ref());
                 msg.put(capabilities.as_bytes());
             }
 
@@ -108,8 +105,7 @@ impl From<ClientMessage> for Bytes {
             }
         }
 
-        let mut msg_len = Vec::with_capacity(4);
-        msg_len.put_u32((msg.len().saturating_sub(4)) as u32);
+        let msg_len = (msg.len() as u32).saturating_sub(4).to_be_bytes();
         msg.splice(4..4, msg_len);
 
         msg.into()
@@ -237,9 +233,12 @@ pub type ServerMessages = Vec<ServerMessage>;
 
 impl From<BytesMut> for ServerMessage {
     fn from(mut src: BytesMut) -> ServerMessage {
-        const GAIN_FACTOR: f64 = 65536.0;
+        // Gain values from the LMS are 4 bytes 16.16 fixed point.
+        // We read the whole as a u32 and divide by this GAIN_FACTOR
+        // to turn it into a floating point gain value.
+        const GAIN_FACTOR: f64 = u16::MAX as f64 + 1.0; // 65536.0;
 
-        let msg = String::from_utf8(src.split_to(4).to_vec()).unwrap_or_default();
+        let msg = String::from_utf8_lossy(&src.split_to(4)).to_string();
         let mut buf = src;
 
         match msg.as_str() {
@@ -267,7 +266,7 @@ impl From<BytesMut> for ServerMessage {
 
                 match buf.split_to(1)[0] as char {
                     't' => {
-                        buf.advance(14);
+                        buf.advance(13);
                         let timestamp = Duration::from_millis(buf.get_u32() as u64);
                         ServerMessage::Status(timestamp)
                     }
@@ -594,7 +593,7 @@ mod tests {
 
         let msg: ServerMessage = buf.into();
         match msg {
-            ServerMessage::Status(d) => assert_eq!(d, Duration::from_millis(252711186)),
+            ServerMessage::Status(d) => assert_eq!(d, Duration::from_millis(235868177)),
             _ => {
                 panic!("STRMt message not received");
             }

@@ -1,3 +1,21 @@
+/*
+vibe — a music player for the Lyrion Music Server
+Copyright (C) 2026  Geoff Clements
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 /// Entry point for Vibe.
 ///
 /// `main.rs` is purely a wiring layer:
@@ -121,6 +139,7 @@ fn main() -> anyhow::Result<()> {
     // -----------------------------------------------------------------------
     // Main reconnect loop — restarts whenever the server connection is lost.
     // -----------------------------------------------------------------------
+    let mut reconnect = false;
     loop {
         let player_name = {
             let name = match hostname::get().map(|s| s.into_string()) {
@@ -135,7 +154,7 @@ fn main() -> anyhow::Result<()> {
         // Channels for the SlimProto protocol thread.
         let (slim_tx, slim_tx_out) = bounded::<ClientMessage>(1);
         let (slim_rx_in, slim_rx) = bounded(1);
-        proto::run(cli_server, slim_rx_in, slim_tx_out);
+        proto::run(cli_server, slim_rx_in, slim_tx_out, reconnect);
 
         // Channel for decoder / audio-backend → event loop messages.
         let (stream_tx, stream_rx) = bounded::<PlayerMsg>(10);
@@ -177,6 +196,7 @@ fn main() -> anyhow::Result<()> {
                         if let Some(ref mut output) = ctx.output {
                             output.stop();
                         }
+                        reconnect = true;
                         break;
                     }
                 },

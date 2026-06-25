@@ -10,6 +10,7 @@ use anyhow::anyhow;
 use crossbeam::{
     atomic::AtomicCell,
     channel::{Sender, bounded},
+    channel::{Sender, bounded},
 };
 use log::warn;
 use pulse::{
@@ -22,10 +23,9 @@ use pulse::{
 
 use crate::{
     audio_out::AudioOutput,
-    decode::StreamParams,
-    decode::{DecoderError, VibeDecoder},
+    decode::{DecoderError, StreamParams, VibeDecoder},
     message::PlayerMsg,
-    state::SKIP,
+    state::{SKIP, STATUS},
 };
 
 const MIN_AUDIO_BUFFER_SIZE: usize = 8 * 1024;
@@ -269,16 +269,22 @@ impl AudioOutput for PulseAudioOutput {
             }
 
             if *state_ref.borrow() != WriteState::Draining {
-                let end_of_decode = match decoder.fill_raw_buffer(&mut audio_buf, Some(len)) {
-                    Ok(eod) => eod,
-                    Err(DecoderError::StreamError(e)) => {
-                        warn!("Error reading data stream: {}", e);
-                        _ = stream_in_ref.send(PlayerMsg::NotSupported);
-                        *state_ref.borrow_mut() = WriteState::Draining;
-                        true
-                    }
+                // fill the buffer from the decoder
+                let end_of_decode = loop {
+                    let eod = match decoder.fill_raw_buffer(&mut audio_buf, Some(len)) {
+                        Ok(eod) => eod,
+                        Err(DecoderError::StreamError(e)) => {
+                            warn!("Error reading data stream: {}", e);
+                            _ = stream_in_ref.send(PlayerMsg::NotSupported);
+                            *state_ref.borrow_mut() = WriteState::Draining;
+                            true
+                        }
+                        Err(DecoderError::Retry) => continue,
+                    };
+                    break eod;
                 };
 
+                // write to pulse_audio, honouring any skip requests
                 if !audio_buf.is_empty() {
                     let buf_len = audio_buf.len().min(len);
                     let offset =
@@ -292,6 +298,32 @@ impl AudioOutput for PulseAudioOutput {
                     }
                 }
 
+                // report output buffer fullness to the LMS STATUS struct
+                if let Some(stream) = unsafe { stream_ref.as_ptr().as_ref() } {
+                    let bytes_per_frame = size_of::<f32>() * spec.channels as usize;
+
+                    // Bytes already sitting in our own pre-decoded buffer, not yet written to pulse.
+                    let our_buf_bytes = audio_buf.len() as u64;
+
+                    // Microseconds reported by pulse as time-to-speaker for what's already written;
+                    // convert to bytes using this stream's negotiated rate/channels.
+                    let pulse_latency_bytes = match stream.get_latency() {
+                        Ok(pulse::stream::Latency::Positive(pulse::time::MicroSeconds(usecs))) => {
+                            (usecs * spec.rate as u64 * bytes_per_frame as u64) / 1_000_000
+                        }
+                        _ => 0,
+                    };
+
+                    let total_fullness = our_buf_bytes.saturating_add(pulse_latency_bytes);
+
+                    if let Ok(mut status) = STATUS.lock() {
+                        status.set_output_buffer_size(audio_buf.capacity() as u32);
+                        status
+                            .set_output_buffer_fullness(total_fullness.min(u32::MAX as u64) as u32);
+                    }
+                }
+
+                // send end of decode message, just once
                 if end_of_decode {
                     _ = stream_in_ref.send(PlayerMsg::EndOfDecode);
                     *state_ref.borrow_mut() = WriteState::Draining;

@@ -2,15 +2,18 @@
 //!
 //! The `Hello` builder simplifies constructing the initial HELO message and
 //! connecting to an LMS instance. It returns a pair of frame-oriented helpers
-//! (`LmsRecv` and `LmsSend`) ready for use.
-use std::net::{TcpStream, ToSocketAddrs};
+//! (`LMSRecv` and `LMSSend`) ready for use.
+use std::{
+    io::{Read, Write},
+    net::{TcpStream, ToSocketAddrs},
+};
 
 use mac_address::MacAddress;
 
 use crate::{
     Capability,
     capability::CapList,
-    frames::{LmsRecv, LmsSend},
+    frames::{LMSRecv, LMSSend},
     messages::ClientMessage,
 };
 
@@ -19,6 +22,8 @@ use crate::{
 /// `Hello` collects the fields required by the Slim Protocol HELO message and
 /// provides a `connect` method that opens a TCP connection, sends the HELO
 /// frame, and returns framed reader/writer helpers.
+///
+/// Note: that the two `char`s in the `language` field should be ASCII.
 #[derive(Default)]
 pub struct Hello {
     device_id: u8,
@@ -28,6 +33,7 @@ pub struct Hello {
     wlan_channel_list: u16,
     bytes_received: u64,
     language: [char; 2],
+    reconnect: bool,
     caps: CapList,
 }
 
@@ -73,9 +79,15 @@ impl Hello {
         self
     }
 
-    /// Set the language (two-character code) reported to the server.
+    /// Set the language (two-character code in ASCII) reported to the server.
     pub fn language(mut self, language: [char; 2]) -> Self {
         self.language = language;
+        self
+    }
+
+    /// Whether to send the reconnect flag when we connect to the server.
+    pub fn reconnect(mut self, reconnect: bool) -> Self {
+        self.reconnect = reconnect;
         self
     }
 
@@ -87,28 +99,34 @@ impl Hello {
 
     /// Connect to an LMS server and perform the initial HELO handshake.
     ///
-    /// On success returns a `(LmsRecv, LmsSend)` pair ready for receiving and
+    /// On success returns a `(LMSRecv, LMSSend)` pair ready for receiving and
     /// sending framed messages.
     pub fn connect<A: ToSocketAddrs>(
         self,
         socket: A,
-    ) -> std::io::Result<(LmsRecv<TcpStream>, LmsSend<TcpStream>)> {
+    ) -> std::io::Result<(LMSRecv<impl Read>, LMSSend<impl Write>)> {
         let stream = TcpStream::connect(socket)?;
         stream.set_nodelay(true)?;
+
+        let wlan_channel_list = if self.reconnect {
+            self.wlan_channel_list | 0x0400
+        } else {
+            self.wlan_channel_list
+        };
 
         let helo = ClientMessage::Helo {
             device_id: self.device_id,
             revision: self.revision,
             mac: self.mac,
             uuid: self.uuid,
-            wlan_channel_list: self.wlan_channel_list,
+            wlan_channel_list,
             bytes_received: self.bytes_received,
             language: self.language,
             capabilities: self.caps.to_string(),
         };
 
-        let rx = LmsRecv::new(stream.try_clone()?);
-        let mut tx = LmsSend::new(stream);
+        let rx = LMSRecv::new(stream.try_clone()?);
+        let mut tx = LMSSend::new(stream);
         tx.send(helo)?;
 
         Ok((rx, tx))

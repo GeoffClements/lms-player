@@ -35,10 +35,9 @@ use pipewire::{
 
 use crate::{
     audio_out::AudioOutput,
-    decode::StreamParams,
-    decode::{DecoderError, VibeDecoder},
+    decode::{DecoderError, StreamParams, VibeDecoder},
     message::PlayerMsg,
-    state::SKIP,
+    state::{SKIP, STATUS},
 };
 
 const MIN_AUDIO_BUFFER_SIZE: usize = 8 * 1024;
@@ -55,7 +54,9 @@ pub struct PipewireAudioOutput {
     nodes: Arc<Mutex<HashMap<String, u32>>>,
     _listener: Listener,
     _registry: RegistryRc,
-    duration: Arc<AtomicCell<u64>>, // in milliseconds
+    duration: Arc<AtomicCell<u64>>, // in milliseconds — accumulated skip offset only now
+    start_ticks: Arc<AtomicCell<Option<(u64, u32)>>>, // (ticks, rate.num, rate.denom) at TrackStarted
+    skip_offset_ms: Arc<AtomicCell<u64>>,
     next_up: Option<(StreamRc, StreamListener<()>)>,
     playing: Option<(StreamRc, StreamListener<()>)>,
     core: CoreRc,
@@ -98,6 +99,8 @@ impl PipewireAudioOutput {
             playing: None,
             next_up: None,
             duration: Arc::new(AtomicCell::new(0)),
+            start_ticks: Arc::new(AtomicCell::new(None)),
+            skip_offset_ms: Arc::new(AtomicCell::new(0)),
             _registry: registry,
             _listener: listener,
             nodes,
@@ -171,6 +174,8 @@ impl AudioOutput for PipewireAudioOutput {
         };
 
         let duration = self.duration.clone();
+        let start_ticks = self.start_ticks.clone();
+        let skip_offset_ms = self.skip_offset_ms.clone();
         let stream_in_ref = stream_in.clone();
         let channels = decoder.channels();
         let rate = decoder.sample_rate();
@@ -205,7 +210,7 @@ impl AudioOutput for PipewireAudioOutput {
                         audio_buf.drain(..bytes_to_skip);
                         let actual_skip_time =
                             decoder.samples_to_dur((bytes_to_skip / size_of::<f32>()) as _);
-                        duration.fetch_add(actual_skip_time.as_millis() as _);
+                        skip_offset_ms.fetch_add(actual_skip_time.as_millis() as _);
                         skip_time = skip_time.saturating_sub(actual_skip_time);
 
                         if audio_buf.is_empty() {
@@ -232,10 +237,51 @@ impl AudioOutput for PipewireAudioOutput {
                     *chunk.offset_mut() = 0;
                     *chunk.stride_mut() = (size_of::<f32>() * channels) as _;
                     *chunk.size_mut() = len as _;
+                }
+            }
 
-                    duration.fetch_add(
-                        (len * 1000 / (size_of::<f32>() * channels * rate as usize)) as _,
-                    );
+            // do timing stuff
+            if let Ok(time) = stream.time() {
+                // keep duration updated
+                if time.rate().denom != 0 {
+                    // Elapsed time, anchored to PipeWire's graph clock at track start.
+                    if start_ticks.load().is_none() {
+                        start_ticks.store(Some((time.ticks(), time.rate().denom)));
+                    }
+
+                    if let Some((start_tick, start_denom)) = start_ticks.load() {
+                        let elapsed_ticks = time.ticks().saturating_sub(start_tick);
+                        let clock_elapsed_ms =
+                            elapsed_ticks.saturating_mul(1000) / start_denom.max(1) as u64;
+                        duration.store(clock_elapsed_ms.saturating_add(skip_offset_ms.load()));
+                    }
+                }
+
+                // report output buffer fullness to the LMS STATUS struct
+                let bytes_per_frame = size_of::<f32>() * channels;
+
+                // Bytes already sitting in our own pre-decoded buffer, not yet handed to PipeWire.
+                let our_buf_bytes = audio_buf.len() as u64;
+
+                // Bytes PipeWire itself is holding: queued (in its ring buffer, not yet at the
+                // driver) plus the driver's reported hardware delay, converted from ticks to bytes.
+                let pw_queued_bytes = time.queued();
+                let driver_delay_bytes = if time.rate().denom != 0 {
+                    (time.delay().max(0) as u64)
+                        .saturating_mul(rate as u64)
+                        .saturating_mul(bytes_per_frame as u64)
+                        / time.rate().denom as u64
+                } else {
+                    0
+                };
+
+                let total_fullness = our_buf_bytes
+                    .saturating_add(pw_queued_bytes)
+                    .saturating_add(driver_delay_bytes);
+
+                if let Ok(mut status) = STATUS.lock() {
+                    status.set_output_buffer_size(audio_buf.capacity() as u32);
+                    status.set_output_buffer_fullness(total_fullness.min(u32::MAX as u64) as u32);
                 }
             }
 
@@ -247,6 +293,8 @@ impl AudioOutput for PipewireAudioOutput {
 
         let stream_in_ref = stream_in.clone();
         let duration = self.duration.clone();
+        let start_ticks = self.start_ticks.clone();
+        let skip_offset_ms = self.skip_offset_ms.clone();
         let on_state_change = move |_stream: &Stream,
                                     _data: &mut _,
                                     old_state: StreamState,
@@ -255,6 +303,8 @@ impl AudioOutput for PipewireAudioOutput {
                 (StreamState::Connecting, StreamState::Paused)
                 | (StreamState::Connecting, StreamState::Streaming) => {
                     duration.store(0);
+                    start_ticks.store(None);
+                    skip_offset_ms.store(0);
                     _ = stream_in_ref.send(PlayerMsg::TrackStarted);
                 }
 
@@ -357,6 +407,10 @@ impl AudioOutput for PipewireAudioOutput {
             _ = stream.0.disconnect();
         }
         self.playing = self.next_up.take();
+
+        self.duration.store(0);
+        self.skip_offset_ms.store(0);
+        self.start_ticks.store(None);
     }
 
     fn stop(&mut self) {
@@ -374,6 +428,8 @@ impl AudioOutput for PipewireAudioOutput {
         self.playing = None;
         self.next_up = None;
         self.duration.store(0);
+        self.skip_offset_ms.store(0);
+        self.start_ticks.store(None);
     }
 
     fn unpause(&mut self) -> bool {

@@ -14,7 +14,7 @@ This crate provides the core protocol primitives required to:
 
 - `Hello` builder for initial LMS connection setup
 - `discover()` helper for LAN server discovery
-- `LmsRecv` and `LmsSend` framed transport helpers
+- `LMSRecv` and `LMSSend` framed transport helpers
 - `ClientMessage` and `ServerMessage` enums for protocol messages
 - `StatusData` helpers for LMS status reporting
 - `SlimBuffer` for buffered audio reads with status tracking
