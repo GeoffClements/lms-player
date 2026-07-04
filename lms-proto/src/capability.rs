@@ -39,30 +39,31 @@ pub enum Capability {
 /// When sent to the server a capability is sent as text
 impl fmt::Display for Capability {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self {
-            Capability::Wma => write!(f, "wma"),
-            Capability::Wmap => write!(f, "wmap"),
-            Capability::Wmal => write!(f, "wmal"),
-            Capability::Ogg => write!(f, "ogg"),
-            Capability::Flc => write!(f, "flc"),
-            Capability::Pcm => write!(f, "pcm"),
-            Capability::Aif => write!(f, "aif"),
-            Capability::Mp3 => write!(f, "mp3"),
-            Capability::Alc => write!(f, "alc"),
-            Capability::Aac => write!(f, "aac"),
-            Capability::Maxsamplerate(v) => write!(f, "MaxSampleRate={}", v),
-            Capability::Model(v) => write!(f, "Model={}", v),
-            Capability::Modelname(v) => write!(f, "Modelname={}", v),
-            Capability::Rhap => write!(f, "Rhap"),
-            Capability::Accurateplaypoints => write!(f, "AccuratePlayPoints=1"),
-            Capability::Syncgroupid(v) => write!(f, "SyncgroupID={}", v),
-            Capability::Hasdigitalout => write!(f, "HasDigitalOut=1"),
-            Capability::Haspreamp => write!(f, "HasPreAmp=1"),
-            Capability::Hasdisabledac => write!(f, "HasDisableDac=1"),
-            Capability::Firmware(v) => write!(f, "Firmware={}", v),
-            Capability::Balance => write!(f, "Balance=1"),
-            Capability::CanHTTPS => write!(f, "canHTTPS=1"),
-        }
+        let cap_str = match &self {
+            Capability::Wma => "wma",
+            Capability::Wmap => "wmap",
+            Capability::Wmal => "wmal",
+            Capability::Ogg => "ogg",
+            Capability::Flc => "flc",
+            Capability::Pcm => "pcm",
+            Capability::Aif => "aif",
+            Capability::Mp3 => "mp3",
+            Capability::Alc => "alc",
+            Capability::Aac => "aac",
+            Capability::Maxsamplerate(v) => return write!(f, "MaxSampleRate={}", v),
+            Capability::Model(v) => return write!(f, "Model={}", v),
+            Capability::Modelname(v) => return write!(f, "Modelname={}", v),
+            Capability::Rhap => "Rhap",
+            Capability::Accurateplaypoints => "AccuratePlayPoints=1",
+            Capability::Syncgroupid(v) => return write!(f, "SyncgroupID={}", v),
+            Capability::Hasdigitalout => "HasDigitalOut=1",
+            Capability::Haspreamp => "HasPreAmp=1",
+            Capability::Hasdisabledac => "HasDisableDac=1",
+            Capability::Firmware(v) => return write!(f, "Firmware={}", v),
+            Capability::Balance => "Balance=1",
+            Capability::CanHTTPS => "canHTTPS=1",
+        };
+        write!(f, "{cap_str}")
     }
 }
 
