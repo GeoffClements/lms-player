@@ -58,13 +58,13 @@ println!("Discovery result: {:?}", server);
 
 For full API details, see the generated docs on [docs.rs](https://docs.rs/lms-proto).
 
-[![MIT licensed][mit-badge]][mit-url]
+[![License: Apache 2.0][apache-badge]][apache-url]
 [![Crate](https://img.shields.io/crates/v/lms-proto.svg)](https://crates.io/crates/lms-proto)
 [![GitHub last commit](https://img.shields.io/github/last-commit/GeoffClements/lms-player.svg)][github]
 [![Build Status][actions-badge]][actions-url]
 
-[mit-badge]: https://img.shields.io/badge/license-MIT-blue.svg
-[mit-url]: https://github.com/GeoffClements/slim-client-protocol-rs/blob/master/LICENSE.txt
+[apache-badge]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[apache-url]: https://opensource.org/licenses/Apache-2.0
 [github]: https://github.com/GeoffClements/lms-player
 [actions-badge]: https://github.com/GeoffClements/lms-player/actions/workflows/feature_build.yml/badge.svg
 [actions-url]: https://github.com/GeoffClements/lms-player/actions?query=workflow%3Arust+branch%3Amaster
