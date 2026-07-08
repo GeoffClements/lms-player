@@ -18,6 +18,7 @@ pub fn run(
     slim_rx_in: Sender<Option<ServerMessage>>,
     slim_tx_out: Receiver<ClientMessage>,
     mut reconnect: bool,
+    output: &str,
 ) {
     let mac = match get_mac_address() {
         Ok(Some(mac)) => mac,
@@ -27,6 +28,7 @@ pub fn run(
     // These are used to update the server address when a Serv message is received
     let mut new_server_sock = None;
     let mut sync_group_id: Option<String> = None;
+    let output = output.to_owned();
 
     spawn(move || {
         // The reconnect loop allows us to reconnect to a different server when a Serv message
@@ -35,7 +37,6 @@ pub fn run(
             let mut caps = vec![
                 Capability::Model(String::from("squeezelite")),
                 Capability::Modelname(String::from("vibe_player")),
-                Capability::Accurateplaypoints,
                 Capability::Hasdigitalout,
                 Capability::Haspreamp,
                 Capability::Hasdisabledac,
@@ -48,6 +49,10 @@ pub fn run(
                 Capability::Ogg,
                 Capability::Flc,
             ];
+
+            if output != "rodio" {
+                caps.push(Capability::Accurateplaypoints);
+            }
 
             if let Some(sgid) = sync_group_id.take() {
                 caps.push(Capability::Syncgroupid(sgid));
