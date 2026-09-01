@@ -55,7 +55,7 @@ pub struct PipewireAudioOutput {
     _listener: Listener,
     _registry: RegistryRc,
     duration: Arc<AtomicCell<u64>>, // in milliseconds — accumulated skip offset only now
-    start_ticks: Arc<AtomicCell<Option<(u64, u32)>>>, // (ticks, rate.num, rate.denom) at TrackStarted
+    start_ticks: Arc<AtomicCell<Option<(u64, u32, u32)>>>, // (ticks, rate.num, rate.denom) at TrackStarted
     skip_offset_ms: Arc<AtomicCell<u64>>,
     next_up: Option<(StreamRc, StreamListener<()>)>,
     playing: Option<(StreamRc, StreamListener<()>)>,
@@ -257,13 +257,15 @@ impl AudioOutput for PipewireAudioOutput {
                 if time.rate().denom != 0 {
                     // Elapsed time, anchored to PipeWire's graph clock at track start.
                     if start_ticks.load().is_none() {
-                        start_ticks.store(Some((time.ticks(), time.rate().denom)));
+                        start_ticks.store(Some((time.ticks(), time.rate().num, time.rate().denom)));
                     }
 
-                    if let Some((start_tick, start_denom)) = start_ticks.load() {
+                    if let Some((start_tick, start_num, start_denom)) = start_ticks.load() {
                         let elapsed_ticks = time.ticks().saturating_sub(start_tick);
-                        let clock_elapsed_ms =
-                            elapsed_ticks.saturating_mul(1000) / start_denom.max(1) as u64;
+                        let clock_elapsed_ms = elapsed_ticks
+                            .saturating_mul(1000)
+                            .saturating_mul(start_num.max(1) as u64)
+                            / start_denom.max(1) as u64;
                         duration.store(clock_elapsed_ms.saturating_add(skip_offset_ms.load()));
                     }
                 }
@@ -405,6 +407,14 @@ impl AudioOutput for PipewireAudioOutput {
     fn pause(&mut self) -> bool {
         if let Some(ref mut stream) = self.playing {
             let _pw_lock = self.mainloop.lock();
+            // The PipeWire graph clock keeps advancing while we're inactive, so
+            // fold the elapsed time we've already reported into skip_offset_ms
+            // and clear start_ticks. The next on_process call after unpausing
+            // will then re-baseline against the *current* tick instead of the
+            // stale pre-pause one, so the pause gap doesn't get counted as
+            // playback time.
+            self.skip_offset_ms.store(self.duration.load());
+            self.start_ticks.store(None);
             stream.0.set_active(false).is_ok()
         } else {
             false
