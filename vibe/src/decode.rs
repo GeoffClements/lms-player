@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 #[allow(unused_imports)]
 use crossbeam::{atomic::AtomicCell, channel::Sender};
 
@@ -12,10 +12,10 @@ use lms_proto::{AutoStart, PcmChannels, PcmSampleRate, SlimBuffer};
 
 use symphonia::core::{
     codecs::{
-        audio::{AudioCodecParameters, AudioDecoder, AudioDecoderOptions},
         CodecParameters,
+        audio::{AudioCodecParameters, AudioDecoder, AudioDecoderOptions},
     },
-    formats::{probe::Hint, FormatOptions, FormatReader, TrackType},
+    formats::{FormatOptions, FormatReader, TrackType, probe::Hint},
     io::{MediaSourceStream, ReadOnlySource},
     meta::MetadataOptions,
 };
@@ -204,12 +204,14 @@ impl VibeDecoder {
 
             let mut audio_buffer = Vec::new();
             decoded.copy_to_vec_interleaved(&mut audio_buffer);
-            audio_buffer.chunks_exact_mut(2).for_each(|frame| {
-                if let [l, r] = frame {
+            audio_buffer
+                .as_chunks_mut::<2>()
+                .0
+                .iter_mut()
+                .for_each(|[l, r]| {
                     *l *= left_volume;
                     *r *= right_volume;
-                }
-            });
+                });
             audio_buffer
         });
 
