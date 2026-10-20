@@ -10,6 +10,6 @@ repository = "https://github.com/GeoffClements/lms-player"
 license = "Apache-2.0"
 
 [dependencies]
-bitflags = "2.13.1"
+bitflags = "2.13.2"
 bytes = "1.12.1"
 mac_address = { workspace = true }
