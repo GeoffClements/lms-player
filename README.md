@@ -129,14 +129,6 @@ demultiplexing and decoding is done natively thanks to
 [Symphonia][`symphonia`], a big "thank-you" to the Symphonia devs for their
 amazing work!
 
-## A Note About The Name
-I named this project `Vibe` a few years ago, before AI was a mainstream thing.
-I thought it sounded cool and was short enough to be a command line instruction.
-Since then "vibe coding" has become a thing where, I believe, so called "vibe coders"
-instruct an AI to code for them. I would like to state now that I do not use
-vibe coding in this project, all code is human-generated and as such, I take
-responsibility for all mistakes in, and short-comings of the code.
-
 ## Support me
 Vibe runs on coffee!
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/V7V719WYF6)

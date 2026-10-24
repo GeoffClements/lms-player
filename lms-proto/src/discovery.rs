@@ -12,7 +12,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, Ordering},
     },
-    thread::{sleep, spawn},
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -57,13 +57,13 @@ pub fn discover(
     let cx_send = cx.try_clone()?;
     let running = Arc::new(AtomicBool::new(true));
     let is_running = running.clone();
-    spawn(move || {
+    thread::Builder::new().name("slim-discover".into()).spawn(move || {
         let buf = b"eNAME\0IPAD\0JSON\0VERS"; // Also \0UUID\0JVID
         while is_running.load(Ordering::Relaxed) {
             _ = cx_send.send_to(buf, (Ipv4Addr::BROADCAST, SLIM_PORT));
             sleep(Duration::from_secs(5));
         }
-    });
+    })?;
 
     let mut buf = [0u8; UDPMAXSIZE];
     let response = cx.recv_from(&mut buf);

@@ -66,7 +66,7 @@ pub struct PipewireAudioOutput {
 
 impl PipewireAudioOutput {
     pub fn try_new() -> anyhow::Result<Self> {
-        let mainloop = unsafe { ThreadLoopRc::new(None, None) }?;
+        let mainloop = unsafe { ThreadLoopRc::new(Some("pw-loop"), None) }?;
         let context = ContextRc::new(&mainloop, None)?;
         let core = context.connect_rc(None)?;
         let registry = core.get_registry_rc()?;

@@ -46,9 +46,9 @@ pub struct PulseAudioOutput {
 
 impl PulseAudioOutput {
     pub fn try_new() -> anyhow::Result<Self> {
-        let mainloop = Rc::new(RefCell::new(
-            Mainloop::new().ok_or(pulse::error::Code::ConnectionRefused)?,
-        ));
+        let mut mainloop = Mainloop::new().ok_or(pulse::error::Code::ConnectionRefused)?;
+        mainloop.set_name("pa-loop");
+        let mainloop = Rc::new(RefCell::new(mainloop));
 
         let context = Rc::new(RefCell::new(
             Context::new(mainloop.borrow_mut().deref(), "Vibe")

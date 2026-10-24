@@ -11,7 +11,7 @@ use notify_rust::Notification;
 use symphonia::core::meta::{MetadataRevision, StandardTag};
 
 pub fn notify(metadata: MetadataRevision) {
-    thread::spawn(move || {
+    thread::Builder::new().name("notify".into()).spawn(move || {
         let notify_tags = metadata
             .media
             .tags
@@ -81,5 +81,5 @@ pub fn notify(metadata: MetadataRevision) {
                 .timeout(6000)
                 .show();
         }
-    });
+    }).expect("failed to spawn notify thread");
 }

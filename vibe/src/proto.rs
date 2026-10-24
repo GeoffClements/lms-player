@@ -7,7 +7,7 @@ use crate::state::STATUS;
 
 use std::{
     net::SocketAddrV4,
-    thread::{sleep, spawn},
+    thread::{self, sleep},
     time::Duration,
 };
 
@@ -30,7 +30,7 @@ pub fn run(
     let mut sync_group_id: Option<String> = None;
     let output = output.to_owned();
 
-    spawn(move || {
+    thread::Builder::new().name("slim-proto".into()).spawn(move || {
         // The reconnect loop allows us to reconnect to a different server when a Serv message
         // is received.
         'reconnect: loop {
@@ -103,7 +103,7 @@ pub fn run(
 
             // Start write thread. The thread will exit when the connection is lost or a Bye message with n=1 is sent.
             let slim_tx_out_ref = slim_tx_out.clone();
-            spawn(move || {
+            thread::Builder::new().name("slim-write".into()).spawn(move || {
                 while let Ok(msg) = slim_tx_out_ref.recv() {
                     // Bye(1) is used to notify this thread to terminate. The LMS takes this
                     // as the client is going down for an upgrade. Send a normal BYE!(0) instead.
@@ -118,7 +118,7 @@ pub fn run(
                     }
                 }
                 info!("Write thread exiting");
-            });
+            }).expect("failed to spawn slim-write thread");
 
             // The serv loop reads messages from the server until a Serv message is received or the connection is lost.
             // When a Serv message is received it breaks to the reconnect loop to connect to the new server.
@@ -163,5 +163,5 @@ pub fn run(
                 }
             }
         }
-    });
+    }).expect("failed to spawn slim-proto thread");
 }

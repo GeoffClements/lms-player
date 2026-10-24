@@ -314,8 +314,10 @@ pub fn make_decoder(
         .context(format!("Unable to connect to data stream at {}", ip))?;
     _ = stream_in.send(PlayerMsg::Connected);
 
+    /// Read-ahead buffer for the data stream (bytes).
+    const STREAM_BUFFER_SIZE: usize = 2 * 1024 * 1024;
     let mut data_stream = SlimBuffer::with_capacity(
-        threshold as usize * 1024,
+        STREAM_BUFFER_SIZE.max(threshold as usize),
         data_stream,
         STATUS.clone(),
         threshold,
@@ -356,6 +358,7 @@ pub fn make_decoder(
 
 fn make_tcp_connection(ip: Ipv4Addr, port: u16, http_headers: String) -> anyhow::Result<TcpStream> {
     let mut data_stream = TcpStream::connect((ip, port))?;
+    data_stream.set_read_timeout(Some(Duration::from_millis(200)))?;
     let headers = http_headers.trim();
     _ = data_stream.write(format!("{}{}", headers, "\r\n").as_bytes())?;
     _ = data_stream.write("\r\n\r\n".as_bytes())?;

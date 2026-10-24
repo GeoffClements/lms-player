@@ -248,10 +248,13 @@ impl PlayerContext {
                 }
             } else if output.pause() {
                 let stream_tx = self.stream_tx.clone();
-                std::thread::spawn(move || {
-                    std::thread::sleep(interval);
-                    _ = stream_tx.send(PlayerMsg::Unpause);
-                });
+                std::thread::Builder::new()
+                    .name("pause-timer".into())
+                    .spawn(move || {
+                        std::thread::sleep(interval);
+                        _ = stream_tx.send(PlayerMsg::Unpause);
+                    })
+                    .expect("failed to spawn pause-timer thread");
             }
         }
     }
@@ -272,7 +275,7 @@ impl PlayerContext {
             info!("Resuming in {:?}", dur);
             let stream_tx = self.stream_tx.clone();
             let slim_tx = self.slim_tx.clone();
-            std::thread::spawn(move || {
+            std::thread::Builder::new().name("resume-timer".into()).spawn(move || {
                 std::thread::sleep(dur);
                 _ = stream_tx.send(PlayerMsg::Unpause);
                 if let Ok(mut status) = STATUS.lock() {
@@ -282,7 +285,7 @@ impl PlayerContext {
                     let msg = status.make_status_message(StatusCode::Resume);
                     _ = slim_tx.send(msg);
                 }
-            });
+            }).expect("failed to spawn resume-timer thread");
         }
     }
 
@@ -322,7 +325,7 @@ impl PlayerContext {
 
             let stream_tx = self.stream_tx.clone();
             let default_ip = self.server_default_ip;
-            std::thread::spawn(move || {
+            std::thread::Builder::new().name("stream-connect".into()).spawn(move || {
                 match decode::make_decoder(
                     server_ip,
                     default_ip,
@@ -345,7 +348,7 @@ impl PlayerContext {
                         _ = stream_tx.send(PlayerMsg::NotSupported);
                     }
                 }
-            });
+            }).expect("failed to spawn stream-connect thread");
         }
     }
 
