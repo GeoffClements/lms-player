@@ -57,6 +57,10 @@ impl Shared {
 /// source ends or errors before reaching it.
 ///
 /// Dropping the `SlimBuffer` signals the thread to stop and joins it.
+/// 
+/// In order to prevent thread blocking it is advised to use `SlimBuffer` with 
+/// an inner reader that is non-blocking or has a timeout, otherwise the fill 
+/// thread may block indefinitely on reads.
 pub struct SlimBuffer {
     shared: Arc<Shared>,
     status: Arc<Mutex<StatusData>>,
