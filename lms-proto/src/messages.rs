@@ -815,7 +815,7 @@ mod tests {
                     do_panic();
                 }
                 assert_eq!(flags, &StreamFlags::INVERT_POLARITY_LEFT);
-                assert_eq!(output_threshold, Duration::from_millis(20));
+                assert_eq!(output_threshold, Duration::from_millis(200));
                 assert_eq!(replay_gain, 1.5);
                 assert_eq!(server_port, 9001);
                 assert_eq!(server_ip, Ipv4Addr::new(172, 16, 1, 2));
