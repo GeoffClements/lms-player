@@ -210,10 +210,8 @@ impl AudioOutput for PulseAudioOutput {
         device: &Option<String>,
     ) -> anyhow::Result<()> {
         // Create an audio buffer to hold raw u8 samples
-        let buf_size = {
-            let num_samples = decoder.dur_to_samples(stream_params.output_threshold) as usize;
-            num_samples.max(MIN_AUDIO_BUFFER_SIZE)
-        };
+        let buf_size = (decoder.dur_to_samples(stream_params.output_threshold) as usize)
+            .max(MIN_AUDIO_BUFFER_SIZE);
 
         let mut audio_buf = Vec::with_capacity(buf_size);
 

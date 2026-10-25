@@ -280,7 +280,7 @@ impl VibeDecoder {
     }
 
     pub fn dur_to_samples(&self, dur: Duration) -> u64 {
-        self.sample_rate() as u64 * self.channels() as u64 * dur.as_micros() as u64 / 1_000_000
+        self.sample_rate() as u64 * self.channels() as u64 * dur.as_millis() as u64 / 1_000
     }
 }
 
