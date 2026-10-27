@@ -138,21 +138,21 @@ pub enum StatusCode {
 
 impl fmt::Display for StatusCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let status_str = match &self {
-            StatusCode::Connect => "STMc",
-            StatusCode::DecoderReady => "STMd",
-            StatusCode::StreamEstablished => "STMe",
-            StatusCode::Flushed => "STMf",
-            StatusCode::HeadersReceived => "STMh",
-            StatusCode::BufferThreshold => "STMl",
-            StatusCode::NotSupported => "STMn",
-            StatusCode::OutputUnderrun => "STMo",
-            StatusCode::Pause => "STMp",
-            StatusCode::Resume => "STMr",
-            StatusCode::TrackStarted => "STMs",
-            StatusCode::Timer => "STMt",
-            StatusCode::Underrun => "STMu",
+        let status_str = match self {
+            StatusCode::Connect => "c",
+            StatusCode::DecoderReady => "d",
+            StatusCode::StreamEstablished => "e",
+            StatusCode::Flushed => "f",
+            StatusCode::HeadersReceived => "h",
+            StatusCode::BufferThreshold => "l",
+            StatusCode::NotSupported => "n",
+            StatusCode::OutputUnderrun => "o",
+            StatusCode::Pause => "p",
+            StatusCode::Resume => "r",
+            StatusCode::TrackStarted => "s",
+            StatusCode::Timer => "t",
+            StatusCode::Underrun => "u",
         };
-        write!(f, "{status_str}")
+        write!(f, "STM{status_str}")
     }
 }
