@@ -4,8 +4,8 @@ use std::net::{Ipv4Addr, SocketAddrV4, ToSocketAddrs};
 
 use cfg_if::cfg_if;
 use clap::{
-    builder::{PossibleValuesParser, TypedValueParser},
     Parser,
+    builder::{PossibleValuesParser, TypedValueParser},
 };
 use lms_proto::SLIM_PORT;
 
@@ -110,15 +110,18 @@ pub fn parse_server_addr(value: &str) -> anyhow::Result<SocketAddrV4> {
 
 /// The audio system that will be selected when no `--system` flag is given.
 pub fn default_system() -> String {
-    cfg_if! {
-        if #[cfg(feature = "pulse")] {
-            "pulse"
-        } else if #[cfg(feature = "pipewire")] {
-            "pipewire"
-        } else {
-            "rodio"
+    {
+        cfg_if! {
+            if #[cfg(feature = "pulse")] {
+                "pulse"
+            } else if #[cfg(feature = "pipewire")] {
+                "pipewire"
+            } else {
+                "rodio"
+            }
         }
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// Build the set of `--system` values that are valid for this feature combination.
