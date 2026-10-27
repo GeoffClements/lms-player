@@ -112,13 +112,13 @@ pub fn parse_server_addr(value: &str) -> anyhow::Result<SocketAddrV4> {
 pub fn default_system() -> String {
     cfg_if! {
         if #[cfg(feature = "pulse")] {
-            "pulse".to_string()
+            "pulse"
         } else if #[cfg(feature = "pipewire")] {
-            "pipewire".to_string()
+            "pipewire"
         } else {
-            "rodio".to_string()
+            "rodio"
         }
-    }
+    }.to_string()
 }
 
 /// Build the set of `--system` values that are valid for this feature combination.
