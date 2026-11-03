@@ -6,6 +6,7 @@
 use std::{
     io::{Read, Write},
     net::{TcpStream, ToSocketAddrs},
+    time::{Duration, Instant},
 };
 
 use mac_address::MacAddress;
@@ -105,7 +106,7 @@ impl Hello {
         self,
         socket: A,
     ) -> std::io::Result<(LMSRecv<impl Read>, LMSSend<impl Write>)> {
-        let stream = TcpStream::connect(socket)?;
+        let stream = connect_with_retry(&socket, Duration::from_secs(600))?;
         stream.set_nodelay(true)?;
 
         let wlan_channel_list = if self.reconnect {
@@ -130,5 +131,27 @@ impl Hello {
         tx.send(helo)?;
 
         Ok((rx, tx))
+    }
+}
+
+fn connect_with_retry<A: ToSocketAddrs>(
+    addr: &A,
+    max_wait: Duration,
+) -> std::io::Result<TcpStream> {
+    let start = Instant::now();
+    let mut delay = Duration::from_millis(10);
+
+    loop {
+        match TcpStream::connect(addr) {
+            Ok(stream) => return Ok(stream),
+            Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
+                if start.elapsed() >= max_wait {
+                    return Err(e);
+                }
+                std::thread::sleep(delay);
+                delay = (delay * 2).min(Duration::from_secs(5)); // Cap at 5s
+            }
+            Err(e) => return Err(e), // Non-retriable errors
+        }
     }
 }
