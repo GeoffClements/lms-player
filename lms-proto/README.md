@@ -1,7 +1,7 @@
 # lms-proto
 
 A minimal Rust crate for building clients that interact with the Lyrion
-Media Server (LMS) over the Slim Protocol.
+Media Server (LMS) over the Slim TCP Protocol.
 
 This crate provides the core protocol primitives required to:
 

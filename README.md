@@ -16,8 +16,9 @@ Vibe is intended to be run as a user daemon and is designed to be simple and
 as unobtrusive as possible. It's possible to start Vibe at login
 using a systemd service file and this can be generated automatically.
 
-It's possible to use auto-discovery to find the Lyrion Music Server
-or, in cases where this is not possible, like when using a `tailscale` VPN,
+Vibe uses auto-discovery to find the Lyrion Music Server
+or, in cases where this is not possible, like when using a mesh 
+VPN like `tailscale`,
 then a server can be specified either by its domain name or its IP address.
 
 The output device can be selected, in this case it's helpful to list 
@@ -45,7 +46,7 @@ Vibe can create a systemd user service file for you using
 vibe --create-service
 ```
 
-If you want to vibe to be started with the options that control server or output,
+If you want vibe to be started with the options that control server or output,
 i.e. `--server`, `--system` or `--device`, then just add
 them as normal to the command line, e.g.
 
