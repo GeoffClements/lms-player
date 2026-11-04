@@ -4,7 +4,7 @@
 //! connecting to an LMS instance. It returns a pair of frame-oriented helpers
 //! (`LMSRecv` and `LMSSend`) ready for use.
 use std::{
-    io::{Read, Write},
+    io::{self, ErrorKind, Read, Write},
     net::{TcpStream, ToSocketAddrs},
     time::{Duration, Instant},
 };
@@ -134,17 +134,22 @@ impl Hello {
     }
 }
 
-fn connect_with_retry<A: ToSocketAddrs>(
-    addr: &A,
-    max_wait: Duration,
-) -> std::io::Result<TcpStream> {
+fn connect_with_retry<A: ToSocketAddrs>(addr: &A, max_wait: Duration) -> io::Result<TcpStream> {
     let start = Instant::now();
     let mut delay = Duration::from_millis(10);
-
+    
     loop {
         match TcpStream::connect(addr) {
             Ok(stream) => return Ok(stream),
-            Err(e) if e.kind() == std::io::ErrorKind::ConnectionRefused => {
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    ErrorKind::ConnectionRefused
+                        | ErrorKind::HostUnreachable
+                        | ErrorKind::NetworkUnreachable
+                        | ErrorKind::NetworkDown
+                ) =>
+            {
                 if start.elapsed() >= max_wait {
                     return Err(e);
                 }
