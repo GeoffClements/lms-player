@@ -100,8 +100,10 @@ impl Hello {
 
     /// Connect to an LMS server and perform the initial HELO handshake.
     ///
-    /// On success returns a `(LMSRecv, LMSSend)` pair ready for receiving and
-    /// sending framed messages.
+    /// This opens a TCP socket, retries a few transient connection failures, and
+    /// then sends the HELO frame required by the Slim protocol. On success it
+    /// returns a `(LMSRecv, LMSSend)` pair ready for receiving and sending framed
+    /// messages over the established connection.
     pub fn connect<A: ToSocketAddrs>(
         self,
         socket: A,
@@ -134,6 +136,11 @@ impl Hello {
     }
 }
 
+/// Attempt a TCP connection, retrying transient network failures with
+/// exponential backoff.
+///
+/// This helper is used during the initial server handshake so short-lived startup
+/// races or temporary network errors do not immediately fail the connection.
 fn connect_with_retry<A: ToSocketAddrs>(addr: &A) -> io::Result<TcpStream> {
     let mut delay = Duration::from_millis(10);
 
