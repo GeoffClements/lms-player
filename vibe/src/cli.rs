@@ -1,13 +1,24 @@
 /// Command-line interface definition and argument parsers.
 ///
-use std::net::{Ipv4Addr, SocketAddrV4, ToSocketAddrs};
+use std::{
+    io,
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    thread,
+    time::{Duration, Instant},
+};
 
 use cfg_if::cfg_if;
 use clap::{
     Parser,
     builder::{PossibleValuesParser, TypedValueParser},
 };
+use dns_lookup::{LookupErrorKind, getaddrinfo};
 use lms_proto::SLIM_PORT;
+
+/// Delay before the first retry; doubles after each failure.
+const RESOLVE_INITIAL_DELAY: Duration = Duration::from_millis(50);
+/// Upper bound on the delay between retries.
+const RESOLVE_MAX_DELAY: Duration = Duration::from_secs(5);
 
 #[derive(Parser)]
 #[command(name = "Vibe", author, version, about, long_about = None)]
@@ -65,8 +76,67 @@ pub struct Cli {
     pub loglevel: log::LevelFilter,
 }
 
+/// Resolve `host` to an IPv4 socket address with the given `port`, retrying
+/// with exponential backoff while the resolver reports a temporary failure
+/// (`EAI_AGAIN`), e.g. when the network is not up yet.
+///
+/// With `timeout` set to `None` the retry continues indefinitely; otherwise it
+/// gives up with an `ErrorKind::TimedOut` error once the time budget is spent.
+/// The budget is checked between attempts, so a single `getaddrinfo` call that
+/// blocks for a long time can push the total past `timeout`.
+///
+/// Other errors are returned immediately. `Ok(None)` means the lookup
+/// succeeded but produced no IPv4 address.
+fn resolve_with_retry(
+    host: &str,
+    port: u16,
+    timeout: Option<Duration>,
+) -> io::Result<Option<SocketAddrV4>> {
+    let deadline = timeout.map(|t| Instant::now() + t);
+    let mut delay = RESOLVE_INITIAL_DELAY;
+    let mut attempt: u64 = 1;
+
+    loop {
+        match getaddrinfo(Some(host), None, None) {
+            Ok(addrs) => {
+                return Ok(addrs
+                    .filter_map(Result::ok)
+                    .find_map(|ai| match ai.sockaddr {
+                        SocketAddr::V4(v4) => Some(SocketAddrV4::new(*v4.ip(), port)),
+                        SocketAddr::V6(_) => None,
+                    }));
+            }
+            Err(e) if matches!(e.kind(), LookupErrorKind::Again) => {
+                // Never sleep past the deadline; make one last attempt at it.
+                let mut sleep_for = delay;
+                if let Some(deadline) = deadline {
+                    let remaining = deadline.saturating_duration_since(Instant::now());
+                    if remaining.is_zero() {
+                        return Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            format!("timed out resolving {host} after {attempt} attempt(s): {e}"),
+                        ));
+                    }
+                    sleep_for = sleep_for.min(remaining);
+                }
+
+                log::warn!(
+                    "Name resolution for {host} failed (attempt {attempt}): {e}; retrying in {sleep_for:?}"
+                );
+                thread::sleep(sleep_for);
+                delay = (delay * 2).min(RESOLVE_MAX_DELAY);
+                attempt = attempt.saturating_add(1);
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+}
+
 /// Parse a `"host[:port]"` string into a `SocketAddrV4`, resolving hostnames as needed.
-pub fn parse_server_addr(value: &str) -> anyhow::Result<SocketAddrV4> {
+///
+/// Temporary name resolution failures are retried until `timeout` has elapsed,
+/// or indefinitely if `timeout` is `None`.
+pub fn parse_server_addr(value: &str, timeout: Option<Duration>) -> anyhow::Result<SocketAddrV4> {
     // Try a bare SocketAddrV4 (ip:port).
     if let Ok(addr) = value.parse::<SocketAddrV4>() {
         return Ok(addr);
@@ -92,17 +162,9 @@ pub fn parse_server_addr(value: &str) -> anyhow::Result<SocketAddrV4> {
         _ => (value, SLIM_PORT),
     };
 
-    // Resolve the hostname and keep the first IPv4 result.
-    let addr = (host, port)
-        .to_socket_addrs()?
-        .filter_map(|a| {
-            if let std::net::SocketAddr::V4(v4) = a {
-                Some(v4)
-            } else {
-                None
-            }
-        })
-        .next()
+    // Resolve the hostname (retrying on transient DNS failures) and keep the
+    // first IPv4 result.
+    let addr = resolve_with_retry(host, port, timeout)?
         .ok_or_else(|| anyhow::anyhow!("Could not resolve server address"))?;
 
     Ok(addr)

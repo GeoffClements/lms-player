@@ -57,6 +57,7 @@ cfg-if = "1.0.5"
 clap = { version = "4.6.7", features = ["derive"] }
 crossbeam = "0.8.5"
 dirs = "7.0.0"
+dns-lookup = "4.0.2"
 hostname = "0.4.2"
 lms-proto = { path = "../lms-proto/", version = "0.1.4-dev" }
 log = "0.4.34"

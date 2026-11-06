@@ -85,7 +85,8 @@ fn main() -> anyhow::Result<()> {
     // --create-service: generate a systemd unit file and exit.
     if cli.create_service {
         if let Some(ref server) = cli.server {
-            cli::parse_server_addr(server).context(format!("Server not found: {}", server))?;
+            cli::parse_server_addr(server, Some(Duration::from_secs(5)))
+                .context(format!("Server not found: {}", server))?;
         }
         startup::create_systemd_unit(&cli.server, &output_system, &cli.device)?;
         return Ok(());
@@ -131,7 +132,10 @@ fn main() -> anyhow::Result<()> {
 
     // Resolve the optional --server argument once up front.
     let cli_server: Option<SocketAddrV4> = if let Some(ref server) = cli.server {
-        Some(cli::parse_server_addr(server).context(format!("Server not found: {}", server))?)
+        Some(
+            cli::parse_server_addr(server, None)
+                .context(format!("Server not found: {}", server))?,
+        )
     } else {
         None
     };
