@@ -2,7 +2,7 @@
 ///
 use std::{
     io,
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    net::{IpAddr, Ipv4Addr, SocketAddrV4},
     thread,
     time::{Duration, Instant},
 };
@@ -12,7 +12,7 @@ use clap::{
     Parser,
     builder::{PossibleValuesParser, TypedValueParser},
 };
-use dns_lookup::{LookupErrorKind, getaddrinfo};
+use dns_lookup::{LookupErrorKind, lookup_host};
 use lms_proto::SLIM_PORT;
 
 /// Delay before the first retry; doubles after each failure.
@@ -82,7 +82,7 @@ pub struct Cli {
 ///
 /// With `timeout` set to `None` the retry continues indefinitely; otherwise it
 /// gives up with an `ErrorKind::TimedOut` error once the time budget is spent.
-/// The budget is checked between attempts, so a single `getaddrinfo` call that
+/// The budget is checked between attempts, so a single lookup call that
 /// blocks for a long time can push the total past `timeout`.
 ///
 /// Other errors are returned immediately. `Ok(None)` means the lookup
@@ -97,14 +97,12 @@ fn resolve_with_retry(
     let mut attempt: u64 = 1;
 
     loop {
-        match getaddrinfo(Some(host), None, None) {
-            Ok(addrs) => {
-                return Ok(addrs
-                    .filter_map(Result::ok)
-                    .find_map(|ai| match ai.sockaddr {
-                        SocketAddr::V4(v4) => Some(SocketAddrV4::new(*v4.ip(), port)),
-                        SocketAddr::V6(_) => None,
-                    }));
+        match lookup_host(host) {
+            Ok(mut addrs) => {
+                return Ok(addrs.find_map(|ip| match ip {
+                    IpAddr::V4(v4) => Some(SocketAddrV4::new(v4, port)),
+                    IpAddr::V6(_) => None,
+                }));
             }
             Err(e) if matches!(e.kind(), LookupErrorKind::Again) => {
                 // Never sleep past the deadline; make one last attempt at it.
